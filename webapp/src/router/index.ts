@@ -6,10 +6,36 @@ import { strongholdBizAppsSuiteRoutes } from '@/modules/stronghold-biz-apps-suit
 import { projectManagementSystemRoutes } from '@/modules/project-management-system/router';
 import { safetyApplicationRoutes } from '@/modules/safety-application/router';
 import { incidentManagementRoutes } from '@/modules/incident-management/router';
+import { estimatingRoutes } from '@/modules/estimating/router';
+import { isAuthenticated } from '@/services/authService';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 
+const PUBLIC_PATHS = ['/login'];
+
 const routes = [
+    // Public — no auth required
+    {
+        path: '/login',
+        name: 'login',
+        component: () => import('@/views/auth/LoginView.vue'),
+        meta: { public: true, title: 'Sign In' },
+    },
+
+    // Default redirect
+    {
+        path: '/',
+        redirect: `/${apps.estimating.baseSlug}/estimates`,
+    },
+
+    // Estimating (primary app)
+    {
+        path: `/${apps.estimating.baseSlug}`,
+        component: () => import('@/layout/AppLayout.vue'),
+        children: estimatingRoutes,
+    },
+
+    // Other modules
     {
         path: `/${apps.safetyApplication.baseSlug}`,
         component: () => import('@/layout/AppLayout.vue'),
@@ -35,11 +61,6 @@ const routes = [
         component: () => import('@/layout/AppLayout.vue'),
         children: incidentManagementRoutes,
     },
-    {
-        path: '/authentication/login-callback',
-        name: 'authentication-login-callback',
-        component: () => import('@/views/auth/AuthRedirectView.vue'),
-    },
 ];
 
 const router = createRouter({
@@ -52,19 +73,29 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
     NProgress.start();
+
+    // Trim trailing slash
     if (to.path !== '/' && to.path.endsWith('/')) {
-        const trimmedPath = to.path.slice(0, -1);
-        next({ path: trimmedPath, query: to.query, hash: to.hash });
-    } else {
-        next();
+        return next({ path: to.path.slice(0, -1), query: to.query, hash: to.hash });
     }
+
+    // Allow public routes through
+    const isPublic = to.meta.public === true || PUBLIC_PATHS.includes(to.path);
+    if (isPublic) return next();
+
+    // Require authentication for everything else
+    if (!isAuthenticated()) {
+        return next({ path: '/login', query: { redirect: to.fullPath } });
+    }
+
+    next();
 });
 
-router.afterEach((to) => {
+router.afterEach(to => {
     NProgress.done();
     const appStore = useAppStore();
     const routeTitle = to.meta.title ? `${to.meta.title} - ` : '';
-    const appName = appStore.currentApp.name || 'The Stronghold Companies';
+    const appName = appStore.currentApp.name || 'Stronghold Enterprise Estimating';
     document.title = routeTitle + appName;
 });
 

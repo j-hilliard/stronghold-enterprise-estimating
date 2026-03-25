@@ -74,7 +74,7 @@
 
     <Target Name="NSwag" AfterTargets="PostBuildEvent" Condition="'$(skipNswagClientGeneration)' != 'true'">
         <Copy SourceFiles="@(ReferencePath)" DestinationFolder="$(OutDir)References" />
-        <Exec WorkingDirectory="$(ProjectDir)" Command="set ASPNETCORE_ENVIRONMENT=Local&amp;&amp; set UseAzureAppConfig=false&amp;&amp; set SkipDatabaseInitialization=true&amp;&amp; $(NSwagExe_Net80) run ../Api/nswag.json /variables:Configuration=$(Configuration),ClientNamespace=StrongholdApi,ClientClassNamePrefix=Api" />
+        <Exec WorkingDirectory="$(ProjectDir)" Command="set ASPNETCORE_ENVIRONMENT=Local&amp;&amp; set UseAzureAppConfig=false&amp;&amp; set SkipDatabaseInitialization=true&amp;&amp; $(NSwagExe_Net80) run ../Api/nswag.json /variables:Configuration=$(Configuration),ClientNamespace=StrongholdApi,ClientClassNamePrefix=Api" ContinueOnError="WarnAndContinue" />
         <RemoveDir Directories="$(OutDir)References" ContinueOnError="WarnAndContinue" />
     </Target>
 

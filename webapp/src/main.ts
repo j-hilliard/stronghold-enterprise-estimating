@@ -1,14 +1,6 @@
 import App from '@/App.vue';
 import router from '@/router/index.ts';
 import { useApiStore } from '@/stores/apiStore.ts';
-import { useUserStore } from '@/stores/userStore.ts';
-import {
-    handleRedirectResponse,
-    isLocalAuthEnabled,
-    localAccount,
-    login,
-    msalInstance,
-} from '@/services/msalService.ts';
 
 import Toast from 'primevue/toast';
 import Ripple from 'primevue/ripple';
@@ -50,40 +42,9 @@ app.config.globalProperties.$appState = reactive({
     isNewThemeLoaded: false,
 });
 
-const initializeAuth = async () => {
-    if (isLocalAuthEnabled) {
-        return localAccount;
-    }
+// Restore JWT token to axios headers if already logged in.
+// The router guard handles redirecting to /login if not authenticated.
+const apiStore = useApiStore();
+apiStore.setToken();
 
-    await msalInstance.initialize();
-    return handleRedirectResponse();
-};
-
-const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
-
-if (bypassAuth) {
-    const userStore = useUserStore();
-    userStore.setMockUser();
-    app.mount('#app');
-} else {
-    initializeAuth()
-        .then(async account => {
-            const apiStore = useApiStore();
-            const userStore = useUserStore();
-
-            await apiStore.setToken(account);
-            await userStore.setUser(account);
-
-            if (!userStore.isAuthenticated && !isLocalAuthEnabled) {
-                await login();
-            }
-
-            return userStore.isAuthenticated;
-        })
-        .then(isAuthenticated => {
-            if (isAuthenticated) {
-                app.mount('#app');
-            }
-        })
-        .catch(error => console.error(error));
-}
+app.mount('#app');

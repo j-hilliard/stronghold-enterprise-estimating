@@ -2,11 +2,26 @@
 using System.Diagnostics;
 using System.Reflection;
 using MediatR;
-using Stronghold.EnterpriseEstimating.Api.Helpers;
 using Stronghold.EnterpriseEstimating.Shared.Attributes;
 
 namespace Stronghold.EnterpriseEstimating.Api.Domain
 {
+    internal static class TypeExtensions
+    {
+        internal static bool IsSimpleType(this Type type)
+        {
+            return type.IsPrimitive
+                || type.IsEnum
+                || type == typeof(string)
+                || type == typeof(decimal)
+                || type == typeof(DateTime)
+                || type == typeof(DateTimeOffset)
+                || type == typeof(Guid)
+                || (Nullable.GetUnderlyingType(type) is { } ut && ut.IsSimpleType());
+        }
+    }
+
+
     public class LoggingBehavior<TRequest, TResponse> : PipelineBehavior<TRequest, TResponse>
         where TRequest : IRequest<TResponse>
     {
