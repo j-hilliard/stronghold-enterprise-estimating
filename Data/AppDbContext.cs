@@ -8,7 +8,9 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options) { }
 
+    public DbSet<Company> Companies { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
+    public DbSet<UserCompany> UserCompanies { get; set; } = null!;
     public DbSet<UserProfileSettings> Profiles { get; set; } = null!;
     public DbSet<Role> Roles { get; set; } = null!;
     public DbSet<UserRole> UserRoles { get; set; } = null!;
@@ -33,6 +35,8 @@ public class AppDbContext : DbContext
     // Rate Books
     public DbSet<RateBook> RateBooks { get; set; } = null!;
     public DbSet<RateBookLaborRate> RateBookLaborRates { get; set; } = null!;
+    public DbSet<RateBookEquipmentRate> RateBookEquipmentRates { get; set; } = null!;
+    public DbSet<RateBookExpenseItem> RateBookExpenseItems { get; set; } = null!;
     public DbSet<CrewTemplate> CrewTemplates { get; set; } = null!;
     public DbSet<CrewTemplateRow> CrewTemplateRows { get; set; } = null!;
 
@@ -45,6 +49,27 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Company>(b =>
+        {
+            b.HasKey(c => c.CompanyCode);
+            b.Property(c => c.CompanyCode).IsRequired().HasMaxLength(10);
+            b.Property(c => c.Name).IsRequired().HasMaxLength(200);
+            b.Property(c => c.ShortName).IsRequired().HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<UserCompany>(b =>
+        {
+            b.HasKey(uc => new { uc.UserId, uc.CompanyCode });
+            b.HasOne(uc => uc.User)
+                .WithMany(u => u.UserCompanies)
+                .HasForeignKey(uc => uc.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(uc => uc.Company)
+                .WithMany(c => c.UserCompanies)
+                .HasForeignKey(uc => uc.CompanyCode)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<User>(b =>
         {
             b.HasKey(u => u.UserId);
@@ -129,6 +154,9 @@ public class AppDbContext : DbContext
         {
             b.HasKey(r => r.EstimateRevisionId);
             b.HasIndex(r => new { r.EstimateId, r.RevisionNumber }).IsUnique();
+            b.Property(r => r.LaborTotal).HasPrecision(18, 2);
+            b.Property(r => r.EquipTotal).HasPrecision(18, 2);
+            b.Property(r => r.GrandTotal).HasPrecision(18, 2);
             b.HasOne(r => r.Estimate)
                 .WithMany(e => e.Revisions)
                 .HasForeignKey(r => r.EstimateId)
@@ -147,7 +175,7 @@ public class AppDbContext : DbContext
             b.Property(s => s.GrandTotal).HasPrecision(18, 2);
             b.Property(s => s.InternalCostTotal).HasPrecision(18, 2);
             b.Property(s => s.GrossProfit).HasPrecision(18, 2);
-            b.Property(s => s.GrossMarginPct).HasPrecision(5, 4);
+            b.Property(s => s.GrossMarginPct).HasPrecision(18, 4);
             b.HasOne(s => s.Estimate)
                 .WithOne(e => e.Summary)
                 .HasForeignKey<EstimateSummary>(s => s.EstimateId)
@@ -257,6 +285,29 @@ public class AppDbContext : DbContext
             b.Property(r => r.DtRate).HasPrecision(18, 4);
             b.HasOne(r => r.RateBook)
                 .WithMany(rb => rb.LaborRates)
+                .HasForeignKey(r => r.RateBookId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RateBookEquipmentRate>(b =>
+        {
+            b.HasKey(r => r.RateBookEquipmentRateId);
+            b.Property(r => r.Hourly).HasPrecision(18, 4);
+            b.Property(r => r.Daily).HasPrecision(18, 4);
+            b.Property(r => r.Weekly).HasPrecision(18, 4);
+            b.Property(r => r.Monthly).HasPrecision(18, 4);
+            b.HasOne(r => r.RateBook)
+                .WithMany(rb => rb.EquipmentRates)
+                .HasForeignKey(r => r.RateBookId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RateBookExpenseItem>(b =>
+        {
+            b.HasKey(r => r.RateBookExpenseItemId);
+            b.Property(r => r.Rate).HasPrecision(18, 4);
+            b.HasOne(r => r.RateBook)
+                .WithMany(rb => rb.ExpenseItems)
                 .HasForeignKey(r => r.RateBookId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

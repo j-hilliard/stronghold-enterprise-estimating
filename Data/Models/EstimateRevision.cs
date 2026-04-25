@@ -13,4 +13,11 @@ public class EstimateRevision
 
     public string SavedBy { get; set; } = string.Empty;
     public DateTimeOffset SavedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    // Quick-display totals (denormalized from snapshot)
+    public int LaborCount { get; set; }
+    public int EquipCount { get; set; }
+    public decimal LaborTotal { get; set; }
+    public decimal EquipTotal { get; set; }
+    public decimal GrandTotal { get; set; }
 }

@@ -13,4 +13,10 @@ export const analyticsRoutes = [
         component: () => import('@/modules/estimating/features/analytics/views/ManpowerForecastView.vue'),
         meta: { title: 'Manpower Forecast' },
     },
+    {
+        path: 'calendar',
+        name: `${apps.estimating.baseSlug}-calendar`,
+        component: () => import('@/modules/estimating/features/analytics/views/CalendarView.vue'),
+        meta: { title: 'Calendar' },
+    },
 ];

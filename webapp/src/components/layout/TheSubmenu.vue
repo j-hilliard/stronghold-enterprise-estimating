@@ -59,11 +59,11 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
 import EventBus from '@/layout/event-bus.ts';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, type PropType } from 'vue';
 
 const props = defineProps({
     items: {
-        type: Array,
+        type: Array as PropType<any[]>,
         required: false,
     },
     menuMode: {

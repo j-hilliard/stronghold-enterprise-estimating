@@ -9,8 +9,9 @@
     "build:prod": "vite build --mode prod",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
-    "test:e2e": "playwright test",
-    "test:e2e:live": "playwright test tests/e2e/live-*.spec.ts",
+    "test:e2e": "playwright test --project=chromium-mocked",
+    "test:e2e:live": "playwright test --project=chromium-live",
+    "test:e2e:all": "playwright test",
     "test:e2e:update-snapshots": "playwright test --update-snapshots",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"

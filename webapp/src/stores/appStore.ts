@@ -15,11 +15,21 @@ export const useAppStore = defineStore('app', () => {
             }
         }
 
-        return apps.strongholdBizAppsSuite;
+        return apps.estimating;
     });
 
     const menu = computed(() => {
-        const routes = [{ label: currentApp.value.name, items: currentApp.value.menu.user }];
+        const userItems = [...currentApp.value.menu.user];
+
+        if (userStore.isAdmin || userStore.isAnalytics) {
+            userItems.push({
+                label: 'Global Analytics',
+                icon: 'pi pi-fw pi-globe',
+                to: '/global-analytics',
+            });
+        }
+
+        const routes = [{ label: currentApp.value.name, items: userItems }];
 
         if (userStore.isAdmin && currentApp.value.menu.admin.length) {
             routes.push({ label: 'Administration', items: currentApp.value.menu.admin });

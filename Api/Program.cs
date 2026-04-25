@@ -57,17 +57,45 @@ builder.Services
     });
 
 builder.Services.AddMemoryCache();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+    {
+        // Prevent circular reference errors from EF navigation properties (e.g. CostBookExpense.CostBook → CostBook.Expenses)
+        opts.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        opts.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Application services
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
+builder.Services.AddScoped<EstimateNumberService>();
+builder.Services.AddScoped<ToolExecutorService>();
+builder.Services.AddScoped<AiService>();
+builder.Services.AddScoped<RfqParserService>();
+builder.Services.AddScoped<ProposalPdfService>();
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
+// Groq HTTP client (OpenAI-compatible)
+builder.Services.AddHttpClient("groq", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Ai:GroqBaseUrl"] ?? "https://api.groq.com/openai/v1");
+    var apiKey = builder.Configuration["Ai:GroqApiKey"] ?? "";
+    if (!string.IsNullOrEmpty(apiKey))
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 // Versioning
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddApiVersioning();
-builder.Services.AddVersionedApiExplorer(opt =>
+builder.Services.AddApiVersioning(opt =>
+{
+    opt.DefaultApiVersion = new Asp.Versioning.ApiVersion(1, 0);
+    opt.AssumeDefaultVersionWhenUnspecified = true;
+    opt.ReportApiVersions = true;
+})
+.AddMvc()
+.AddApiExplorer(opt =>
 {
     opt.GroupNameFormat = "'v'V";
     opt.SubstituteApiVersionInUrl = true;
@@ -138,13 +166,34 @@ if (hasSqlConnectionString && !skipDatabaseInitialization)
 {
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    context.Database.EnsureCreated();
+    context.Database.Migrate();
     DbInitializer.Initialize(context);
 }
 
 app.UseCors(p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 app.UseHttpsRedirection();
 app.UseAuthentication();
+
+// Local/Dev only: X-Company-Override header lets the dev switcher pill change company context without re-logging in.
+if (isLocal)
+{
+    app.Use(async (ctx, next) =>
+    {
+        var overrideCode = ctx.Request.Headers["X-Company-Override"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(overrideCode) && ctx.User.Identity?.IsAuthenticated == true)
+        {
+            var claims = ctx.User.Claims
+                .Where(c => c.Type != "company_code")
+                .Append(new System.Security.Claims.Claim("company_code", overrideCode))
+                .ToList();
+            var identity = new System.Security.Claims.ClaimsIdentity(
+                claims, ctx.User.Identity.AuthenticationType);
+            ctx.User = new System.Security.Claims.ClaimsPrincipal(identity);
+        }
+        await next();
+    });
+}
+
 app.UseAuthorization();
 app.MapControllers();
 app.Run();

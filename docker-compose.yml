@@ -1,0 +1,41 @@
+# Stronghold Enterprise Estimating — Local Dev Database
+#
+# COMPLETELY SEPARATE from the safety-app database (which runs on port 14330).
+# This container runs on port 14331 → database: StrongholdEstimating
+#
+# Usage:
+#   Start:  docker compose up -d
+#   Stop:   docker compose down
+#   Reset:  docker compose down -v   (WARNING: deletes all data)
+#
+# Connect in SSMS:
+#   Server:   localhost,14331
+#   Auth:     SQL Server Authentication
+#   Login:    sa
+#   Password: Str0nghold!Dev#2024
+
+services:
+  stronghold-estimating-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: stronghold-estimating-db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Str0nghold!Dev#2024"
+      MSSQL_PID: "Developer"
+    ports:
+      - "14331:1433"
+    volumes:
+      - stronghold_estimating_data:/var/opt/mssql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost",
+             "-U", "sa", "-P", "Str0nghold!Dev#2024",
+             "-Q", "SELECT 1", "-C", "-b"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  stronghold_estimating_data:
+    name: stronghold_estimating_data

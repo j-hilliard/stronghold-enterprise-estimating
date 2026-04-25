@@ -1,6 +1,8 @@
 import App from '@/App.vue';
 import router from '@/router/index.ts';
 import { useApiStore } from '@/stores/apiStore.ts';
+import { tryAutoLogin } from '@/services/authService';
+import { useTheme } from '@/composables/useTheme';
 
 import Toast from 'primevue/toast';
 import Ripple from 'primevue/ripple';
@@ -42,9 +44,14 @@ app.config.globalProperties.$appState = reactive({
     isNewThemeLoaded: false,
 });
 
+// Restore saved theme preference before first paint.
+useTheme().initTheme();
+
 // Restore JWT token to axios headers if already logged in.
-// The router guard handles redirecting to /login if not authenticated.
 const apiStore = useApiStore();
 apiStore.setToken();
 
+// Mount immediately — bypass mode never shows the login page (isAuthenticated always true).
+// tryAutoLogin runs in background to get a real token for API calls.
 app.mount('#app');
+tryAutoLogin().then(() => apiStore.setToken()).catch(() => {});

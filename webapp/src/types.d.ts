@@ -1,7 +1,8 @@
 type AppRoute = {
-    to: string;
+    to?: string;
     icon: string;
     label: string;
+    items?: AppRoute[];
 };
 
 type App = {

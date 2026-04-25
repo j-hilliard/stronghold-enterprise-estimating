@@ -35,17 +35,6 @@
                             />
                         </BaseFormField>
 
-                        <BaseFormField label="Company Code">
-                            <InputText
-                                v-model="form.companyCode"
-                                placeholder="e.g. CSL, ETS, SHC"
-                                class="w-full"
-                                autocomplete="organization"
-                                :disabled="loading"
-                                @input="form.companyCode = (form.companyCode ?? '').toUpperCase()"
-                            />
-                        </BaseFormField>
-
                         <Message v-if="errorMessage" severity="error" :closable="false" class="mt-1">
                             {{ errorMessage }}
                         </Message>
@@ -71,7 +60,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
@@ -81,7 +70,6 @@ import BaseFormField from '@/components/forms/BaseFormField.vue';
 import { useUserStore } from '@/stores/userStore';
 
 const router = useRouter();
-const route = useRoute();
 const userStore = useUserStore();
 
 const year = new Date().getFullYear();
@@ -89,13 +77,12 @@ const year = new Date().getFullYear();
 const form = reactive({
     username: '',
     password: '',
-    companyCode: '',
 });
 
 const loading = ref(false);
 const errorMessage = ref('');
 
-const canSubmit = computed(() => form.username.trim() && form.password && form.companyCode.trim());
+const canSubmit = computed(() => form.username.trim() && form.password);
 
 async function handleLogin() {
     if (!canSubmit.value) return;
@@ -104,13 +91,11 @@ async function handleLogin() {
     errorMessage.value = '';
 
     try {
-        await userStore.login(form.username.trim(), form.password, form.companyCode.trim().toUpperCase());
-
-        const redirect = (route.query.redirect as string) || '/estimating/estimates';
-        await router.push(redirect);
+        await userStore.loginStep1(form.username.trim(), form.password);
+        await router.push('/company-select');
     } catch (err: unknown) {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-        errorMessage.value = msg || 'Invalid username, password, or company code.';
+        errorMessage.value = msg || 'Invalid username or password.';
     } finally {
         loading.value = false;
     }

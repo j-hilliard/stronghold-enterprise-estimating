@@ -1,0 +1,156 @@
+# Build + PR Validation (NO DEPLOY YET)
+# - CI triggers on develop + main
+# - PR validation on develop + main
+# - Dev deploy stage is disabled until Azure resources exist
+
+trigger:
+  branches:
+    include:
+      - develop
+      - main
+
+pr:
+  branches:
+    include:
+      - develop
+      - main
+
+variables:
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
+  # branch flags
+  isMain: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+  isDevelop: $[eq(variables['Build.SourceBranch'], 'refs/heads/develop')]
+
+  # existing vars kept (some will be used later when deploy turns on)
+  serviceConnection: 'STH-App-Dashboard-Pipeline'
+  subscription: 'STH-App-Dashboard-Pipeline'
+  skipNswagClientGeneration: 'true'
+  solution: '**/*.sln'
+
+  sqlDbNameDev: 'sth-sectemplate-test-sqldb'
+  sqlServerNameDev: 'sth-sectemplate-test-sql.database.windows.net'
+
+  vmImageUbuntu: 'ubuntu-latest'
+  vmImageWindows: 'windows-latest'
+
+stages:
+  - stage: build
+    displayName: 'build'
+    jobs:
+      - job: build
+        pool:
+          vmImage: $(vmImageUbuntu)
+        steps:
+          - task: NuGetToolInstaller@1
+            inputs:
+              versionSpec: '>=6.5.0'
+            displayName: 'install NuGet 6.5.0'
+
+          - task: UseDotNet@2
+            displayName: 'Install .NET SDK 7.0.410'
+            inputs:
+              packageType: 'sdk'
+              version: '7.0.410'
+              installationPath: $(Agent.ToolsDirectory)/dotnet
+
+          - script: |
+              echo "##vso[task.prependpath]$(Agent.ToolsDirectory)/dotnet"
+              dotnet --info
+            displayName: 'Verify .NET SDK'
+
+          - task: NuGetAuthenticate@1
+            displayName: 'Authenticate to NuGet feeds'
+
+          - task: DotNetCoreCLI@2
+            inputs:
+              command: 'restore'
+              projects: '**/*.sln'
+              feedsToUse: 'config'
+              nugetConfigPath: '$(System.DefaultWorkingDirectory)/nuget.config'
+
+          - task: DotNetCoreCLI@2
+            inputs:
+              command: 'build'
+              arguments: '--no-restore --configuration $(buildConfiguration)'
+            displayName: 'build solution'
+
+          # Keep these gated to develop for now (useful for later deploy)
+          - task: DotNetCoreCLI@2
+            inputs:
+              command: custom
+              custom: tool
+              arguments: 'install --global dotnet-ef --version 7.0.5 --ignore-failed-sources'
+            displayName: 'install dotnet-ef'
+            condition: eq(variables.isDevelop, true)
+
+          - task: DotNetCoreCLI@2
+            inputs:
+              command: custom
+              custom: ef
+              arguments: 'migrations script --configuration $(BuildConfiguration) --no-build --idempotent --output $(Build.ArtifactStagingDirectory)/migrations.sql'
+              workingDirectory: 'Data'
+            displayName: 'generate sql scripts'
+            condition: eq(variables.isDevelop, true)
+
+          - task: DotNetCoreCLI@2
+            inputs:
+              command: 'publish'
+              publishWebProjects: false
+              arguments: '--no-restore --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+              projects: '**/Api.csproj'
+              zipAfterPublish: true
+            displayName: 'package core api'
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '20.17'
+            displayName: 'Install Node.js'
+
+          - script: |
+              cd webapp
+              if [ -f package-lock.json ]; then
+                npm ci
+              else
+                npm install
+              fi
+            displayName: 'Install NPM packages'
+
+          - script: |
+              cd webapp
+              npm run build:dev
+            displayName: 'Build Vue.js website'
+
+          - task: CopyFiles@2
+            inputs:
+              contents: 'webapp/dist/**'
+              targetFolder: '$(Build.ArtifactStagingDirectory)/webapp'
+            displayName: 'Copy Vue.js build output to artifact staging directory'
+
+          # Publish artifacts on every run so PR validation proves packaging works
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)/webapp'
+              artifactName: 'webapp'
+            displayName: 'Publish Vue.js build artifacts'
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+              artifactName: 'drop'
+            displayName: 'publish artifacts'
+
+  # Deploy stage intentionally disabled until Azure dev resources exist.
+  - stage: dev_deploy
+    displayName: 'dev deploy (DISABLED)'
+    dependsOn: build
+    condition: false
+    jobs:
+      - job: disabled
+        pool:
+          vmImage: $(vmImageUbuntu)
+        steps:
+          - script: |
+              echo "Dev deploy is disabled until Azure resources exist."
+            displayName: 'deploy disabled'

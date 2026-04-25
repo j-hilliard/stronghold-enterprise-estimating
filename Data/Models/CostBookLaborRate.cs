@@ -1,10 +1,12 @@
+using System.Text.Json.Serialization;
+
 namespace Stronghold.EnterpriseEstimating.Data.Models;
 
 public class CostBookLaborRate
 {
     public int CostBookLaborRateId { get; set; }
     public int CostBookId { get; set; }
-    public CostBook CostBook { get; set; } = null!;
+    [JsonIgnore] public CostBook CostBook { get; set; } = null!;
 
     public string Position { get; set; } = string.Empty;
     public string LaborType { get; set; } = "Direct"; // Direct, Indirect

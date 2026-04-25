@@ -1,13 +1,8 @@
 import { apps } from '@/apps.ts';
 import { useAppStore } from '@/stores/appStore.ts';
 import { createRouter, createWebHistory } from 'vue-router';
-import { billingPacketRoutes } from '@/modules/billing-packet-request-system/router';
-import { strongholdBizAppsSuiteRoutes } from '@/modules/stronghold-biz-apps-suite/router';
-import { projectManagementSystemRoutes } from '@/modules/project-management-system/router';
-import { safetyApplicationRoutes } from '@/modules/safety-application/router';
-import { incidentManagementRoutes } from '@/modules/incident-management/router';
 import { estimatingRoutes } from '@/modules/estimating/router';
-import { isAuthenticated } from '@/services/authService';
+import { isAuthenticated, hasPendingCompanySelection } from '@/services/authService';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 
@@ -20,6 +15,14 @@ const routes = [
         name: 'login',
         component: () => import('@/views/auth/LoginView.vue'),
         meta: { public: true, title: 'Sign In' },
+    },
+
+    // Company selection — requires completed step 1 (temp token)
+    {
+        path: '/company-select',
+        name: 'company-select',
+        component: () => import('@/views/auth/CompanySelectView.vue'),
+        meta: { public: false, companySelect: true, title: 'Select Company' },
     },
 
     // Default redirect
@@ -35,32 +38,20 @@ const routes = [
         children: estimatingRoutes,
     },
 
-    // Other modules
+    // Global Analytics (cross-company, Admins + Analytics role only)
     {
-        path: `/${apps.safetyApplication.baseSlug}`,
+        path: '/global-analytics',
         component: () => import('@/layout/AppLayout.vue'),
-        children: safetyApplicationRoutes,
+        children: [
+            {
+                path: '',
+                name: 'global-analytics',
+                component: () => import('@/modules/global-analytics/views/GlobalAnalyticsView.vue'),
+                meta: { title: 'Global Analytics' },
+            },
+        ],
     },
-    {
-        path: `/${apps.billingPacketRequestSystem.baseSlug}`,
-        component: () => import('@/layout/AppLayout.vue'),
-        children: billingPacketRoutes,
-    },
-    {
-        path: `/${apps.strongholdBizAppsSuite.baseSlug}`,
-        component: () => import('@/layout/AppLayout.vue'),
-        children: strongholdBizAppsSuiteRoutes,
-    },
-    {
-        path: `/${apps.projectManagementSystem.baseSlug}`,
-        component: () => import('@/layout/AppLayout.vue'),
-        children: projectManagementSystemRoutes,
-    },
-    {
-        path: `/${apps.incidentManagement.baseSlug}`,
-        component: () => import('@/layout/AppLayout.vue'),
-        children: incidentManagementRoutes,
-    },
+
 ];
 
 const router = createRouter({
@@ -83,8 +74,18 @@ router.beforeEach((to, from, next) => {
     const isPublic = to.meta.public === true || PUBLIC_PATHS.includes(to.path);
     if (isPublic) return next();
 
-    // Require authentication for everything else
+    // Company select screen: needs a valid temp token (or already fully authed)
+    if (to.meta.companySelect) {
+        if (isAuthenticated() || hasPendingCompanySelection()) return next();
+        return next({ path: '/login' });
+    }
+
+    // All other protected routes require full authentication (company selected)
     if (!isAuthenticated()) {
+        // If they have a pending company selection, send them there
+        if (hasPendingCompanySelection()) {
+            return next({ path: '/company-select' });
+        }
         return next({ path: '/login', query: { redirect: to.fullPath } });
     }
 

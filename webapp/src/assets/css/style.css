@@ -151,12 +151,37 @@ body {
     background: color-mix(in srgb, var(--shell-surface-alt) 75%, transparent) !important;
     border-color: var(--shell-border) !important;
     color: var(--shell-text) !important;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease !important;
+}
+
+.p-dropdown {
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease !important;
+}
+
+/* ── Global field hover glow (dark theme) ──────────────────────────────────── */
+
+.p-inputtext:hover,
+.p-textarea:hover,
+.p-multiselect:hover,
+.p-inputnumber:hover .p-inputtext,
+.p-calendar:hover .p-inputtext {
+    border-color: #4d8fd4 !important;
+    box-shadow: 0 0 0 3px rgba(77, 143, 212, 0.22), 0 0 10px rgba(77, 143, 212, 0.14) !important;
+    background: color-mix(in srgb, var(--shell-surface-alt) 90%, transparent) !important;
+}
+
+.p-dropdown:hover,
+.p-multiselect:hover {
+    border-color: #4d8fd4 !important;
+    box-shadow: 0 0 0 3px rgba(77, 143, 212, 0.22), 0 0 10px rgba(77, 143, 212, 0.14) !important;
+    background: color-mix(in srgb, var(--shell-surface-alt) 90%, transparent) !important;
 }
 
 .p-inputtext:focus,
 .p-textarea:focus,
 .p-multiselect:focus {
-    @apply border-blue-500;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.30), 0 0 14px rgba(59, 130, 246, 0.18) !important;
 }
 
 .p-datatable-loading-overlay.p-component-overlay {
@@ -185,4 +210,373 @@ body {
     border: none !important;
     padding: 2px 1rem !important;
     background-color: transparent !important;
+}
+
+/* ── Light theme overrides ─────────────────────────────────────────────────── */
+
+html[data-theme="light"] {
+    /* Shell layout variables */
+    --navy-800: #c5d8f0;
+    --navy-900: #edf2fb;
+    --shell-topbar: #1d3461;
+    --shell-sidebar: #1a2f58;
+    --shell-main-start: #dde8f8;
+    --shell-main-end: #e8f0fd;
+    --shell-surface: #ffffff;
+    --shell-surface-alt: #f0f5fc;
+    --shell-border: #bdd0ea;
+    --shell-text: #1a2845;
+    --shell-text-muted: #4a6080;
+    --content-alt-bg-color: #c8d8ec;
+
+    /* PrimeVue surface scale */
+    --surface-0: #ffffff;
+    --surface-50: #f4f8ff;
+    --surface-100: #e8f0fb;
+    --surface-200: #d6e4f7;
+    --surface-300: #bdd0ea;
+    --surface-400: #94aec8;
+    --surface-500: #6a8aaa;
+    --surface-600: #4a6a8a;
+    --surface-700: #2e4e6e;
+    --surface-800: #1a3252;
+    --surface-900: #0a1e3a;
+    --surface-card: #ffffff;
+    --surface-overlay: #ffffff;
+    --surface-ground: #f4f8ff;
+    --surface-section: #edf4ff;
+    --surface-header: #e8f0fb;
+    --surface-hover: #dce8fb;
+    --surface-border: #bdd0ea;
+    --text-color: #1a2845;
+    --text-color-secondary: #4a6080;
+    --maskbg: rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="light"] body {
+    color: var(--shell-text);
+    background-color: var(--navy-900);
+}
+
+html[data-theme="light"] .app-shell-topbar {
+    background-color: var(--shell-topbar);
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+html[data-theme="light"] .app-shell-sidebar {
+    background-color: var(--shell-sidebar);
+}
+
+html[data-theme="light"] .app-shell-main {
+    background: linear-gradient(180deg, var(--shell-main-start) 0%, var(--shell-main-end) 100%);
+}
+
+html[data-theme="light"] .app-shell-card {
+    background-color: #ffffff;
+    border: 1px solid var(--shell-border);
+    box-shadow: 0 4px 18px rgba(20, 60, 120, 0.1);
+}
+
+html[data-theme="light"] .app-shell-table {
+    background-color: #ffffff;
+    border: 1px solid var(--shell-border);
+}
+
+html[data-theme="light"] .p-dialog {
+    background: #ffffff;
+    border: 1px solid var(--shell-border);
+}
+
+html[data-theme="light"] .p-dialog-header {
+    background: #f5f9ff;
+    color: var(--shell-text);
+    border-bottom: 1px solid var(--shell-border);
+}
+
+html[data-theme="light"] .p-dialog-footer {
+    background: #f5f9ff;
+    border-top: 1px solid var(--shell-border);
+}
+
+html[data-theme="light"] .p-datatable .p-datatable-header {
+    background: #e8f0fb !important;
+    color: var(--shell-text) !important;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .p-datatable .p-datatable-footer {
+    background: #f4f8ff !important;
+    color: var(--shell-text) !important;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .p-datatable .p-datatable-thead > tr > th {
+    background: #e8f0fb !important;
+    color: var(--shell-text) !important;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .p-datatable .p-datatable-tfoot > tr > td {
+    background: #f4f8ff !important;
+    color: var(--shell-text) !important;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .p-datatable .p-datatable-tbody > tr {
+    background: #ffffff !important;
+    color: var(--shell-text) !important;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .p-datatable .p-datatable-tbody > tr > td {
+    border-color: var(--shell-border) !important;
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .p-datatable .p-datatable-tbody > tr:nth-child(even) {
+    background: #f4f8ff !important;
+}
+
+html[data-theme="light"] .p-datatable .p-datatable-tbody > tr:hover {
+    background: #dce8fb !important;
+}
+
+html[data-theme="light"] .p-datatable.p-datatable-hoverable-rows .p-datatable-tbody > tr:not(.p-highlight):hover {
+    background: #dce8fb !important;
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .p-paginator {
+    background: #f4f8ff !important;
+    color: var(--shell-text) !important;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .p-paginator .p-paginator-element {
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .p-paginator .p-paginator-element:hover {
+    background: #dce8fb !important;
+}
+
+html[data-theme="light"] .p-dropdown {
+    background: #ffffff !important;
+    border-color: var(--shell-border) !important;
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .p-dropdown-panel {
+    background: #ffffff !important;
+    border-color: var(--shell-border) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+html[data-theme="light"] .p-dropdown-item {
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .p-dropdown-item:hover {
+    background: #dce8fb !important;
+}
+
+html[data-theme="light"] .p-inputtext,
+html[data-theme="light"] .p-textarea,
+html[data-theme="light"] .p-multiselect {
+    background: #ffffff !important;
+    border-color: var(--shell-border) !important;
+    color: var(--shell-text) !important;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease !important;
+}
+
+html[data-theme="light"] .p-dropdown {
+    transition: border-color 0.18s ease, box-shadow 0.18s ease !important;
+}
+
+/* ── Field hover glow (light theme) ─────────────────────────────────────────── */
+
+html[data-theme="light"] .p-inputtext:hover,
+html[data-theme="light"] .p-textarea:hover,
+html[data-theme="light"] .p-inputnumber:hover .p-inputtext,
+html[data-theme="light"] .p-calendar:hover .p-inputtext {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16), 0 0 8px rgba(37, 99, 235, 0.10) !important;
+}
+
+html[data-theme="light"] .p-dropdown:hover,
+html[data-theme="light"] .p-multiselect:hover {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16), 0 0 8px rgba(37, 99, 235, 0.10) !important;
+}
+
+html[data-theme="light"] .p-tabview .p-tabview-nav {
+    background: transparent;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .p-tabview .p-tabview-nav li .p-tabview-nav-link {
+    background: #f0f5fc;
+    color: var(--shell-text);
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    background: #ffffff;
+    color: var(--p-primary-color, #3b82f6);
+    border-color: var(--p-primary-color, #3b82f6) !important;
+}
+
+html[data-theme="light"] .p-tabview-panels {
+    background: #ffffff;
+    color: var(--shell-text);
+}
+
+html[data-theme="light"] .p-breadcrumb .p-breadcrumb-list li .p-menuitem-link .p-menuitem-text,
+html[data-theme="light"] .p-breadcrumb .p-breadcrumb-list li .p-menuitem-separator {
+    color: rgba(255,255,255,0.75) !important;
+}
+
+/* Tailwind slate/gray classes still reference hardcoded dark colors in components;
+   override the most common ones for light mode readability */
+html[data-theme="light"] .text-slate-300,
+html[data-theme="light"] .text-slate-400 {
+    color: var(--shell-text-muted) !important;
+}
+
+html[data-theme="light"] .text-white {
+    color: #ffffff !important;
+}
+
+html[data-theme="light"] .bg-slate-800 {
+    background-color: #f4f8ff !important;
+}
+
+html[data-theme="light"] .bg-slate-900 {
+    background-color: #edf2fb !important;
+}
+
+html[data-theme="light"] .border-slate-700,
+html[data-theme="light"] .border-slate-600 {
+    border-color: var(--shell-border) !important;
+}
+
+/* PrimeVue Card */
+html[data-theme="light"] .p-card {
+    background: #ffffff !important;
+    color: var(--shell-text) !important;
+    border: 1px solid var(--shell-border) !important;
+    box-shadow: 0 2px 12px rgba(20, 60, 120, 0.08) !important;
+}
+
+html[data-theme="light"] .p-card .p-card-title,
+html[data-theme="light"] .p-card .p-card-subtitle,
+html[data-theme="light"] .p-card .p-card-content {
+    color: var(--shell-text) !important;
+}
+
+/* Collapsible section headers & section-toggle */
+html[data-theme="light"] .collapsible-section {
+    background: #ffffff !important;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .section-toggle {
+    background: #edf4ff !important;
+    border-bottom-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .section-toggle:hover {
+    background: #dce8fb !important;
+}
+
+html[data-theme="light"] .section-label {
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .section-badge {
+    background: #f4f8ff !important;
+    border-color: var(--shell-border) !important;
+    color: var(--shell-text-muted) !important;
+}
+
+/* Labor table */
+html[data-theme="light"] .labor-table thead th {
+    background: #e8f0fb !important;
+    color: var(--shell-text) !important;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .labor-table tbody td,
+html[data-theme="light"] .labor-table tbody tr {
+    background: #ffffff !important;
+    color: var(--shell-text) !important;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .labor-table tbody tr:hover td,
+html[data-theme="light"] .position-row:hover {
+    background: #dce8fb !important;
+}
+
+html[data-theme="light"] .labor-table .totals-row td {
+    background: #f4f8ff !important;
+    border-top-color: var(--shell-border) !important;
+}
+
+/* Rate book bar */
+html[data-theme="light"] .rate-book-bar {
+    background: #f4f8ff !important;
+    border-bottom-color: var(--shell-border) !important;
+}
+
+/* Equipment / Expense tables */
+html[data-theme="light"] .equipment-section,
+html[data-theme="light"] .expense-section {
+    background: #ffffff !important;
+    color: var(--shell-text) !important;
+}
+
+/* Estimate Summary */
+html[data-theme="light"] .estimate-summary {
+    background: #ffffff !important;
+    color: var(--shell-text) !important;
+}
+
+/* Job Cost Analysis */
+html[data-theme="light"] .job-cost-analysis {
+    background: #ffffff !important;
+    color: var(--shell-text) !important;
+}
+
+/* BasePageHeader */
+html[data-theme="light"] .base-page-header {
+    background: #ffffff !important;
+    border-bottom-color: var(--shell-border) !important;
+    color: var(--shell-text) !important;
+}
+
+/* Fix text that uses hardcoded dark text classes */
+html[data-theme="light"] .text-slate-500 {
+    color: var(--shell-text-muted) !important;
+}
+
+html[data-theme="light"] .text-gray-400,
+html[data-theme="light"] .text-gray-500 {
+    color: var(--shell-text-muted) !important;
+}
+
+/* P-tabview panels used in estimate / staffing */
+html[data-theme="light"] .p-tabview,
+html[data-theme="light"] .p-tabview-panels {
+    background: #ffffff !important;
+    color: var(--shell-text) !important;
+}
+
+/* Sidebar / submenu stays dark (brand intentional) */
+html[data-theme="light"] .layout-sidebar,
+html[data-theme="light"] .layout-menu,
+html[data-theme="light"] .layout-menu .layout-menuitem-root-text,
+html[data-theme="light"] .layout-menu .layout-menuitem a {
+    background-color: var(--shell-sidebar) !important;
+    color: rgba(255,255,255,0.85) !important;
 }

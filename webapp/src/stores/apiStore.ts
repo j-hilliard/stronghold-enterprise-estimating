@@ -2,7 +2,7 @@ import { ref } from 'vue';
 import axios from 'axios';
 import router from '@/router';
 import { defineStore } from 'pinia';
-import { getToken, logout } from '@/services/authService';
+import { DEV_BYPASS, getToken, logout, tryAutoLogin } from '@/services/authService';
 import { useAppStore } from '@/stores/appStore.ts';
 
 export const useApiStore = defineStore('api', () => {
@@ -25,11 +25,34 @@ export const useApiStore = defineStore('api', () => {
     function setToken() {
         const token = getToken() ?? '';
         setApiAuthorizationHeader(token);
+        setApiRequestInterceptor();
         setApiResponseInterceptor();
     }
 
+    let requestInterceptorId: number | null = null;
+
+    function setApiRequestInterceptor() {
+        if (requestInterceptorId !== null) {
+            api.value.interceptors.request.eject(requestInterceptorId);
+        }
+        requestInterceptorId = api.value.interceptors.request.use(config => {
+            if (import.meta.env.DEV) {
+                const override = localStorage.getItem('ste_dev_company');
+                if (override) {
+                    config.headers['X-Company-Override'] = override;
+                }
+            }
+            return config;
+        });
+    }
+
+    let interceptorId: number | null = null;
+
     function setApiResponseInterceptor() {
-        api.value.interceptors.response.use(
+        if (interceptorId !== null) {
+            api.value.interceptors.response.eject(interceptorId);
+        }
+        interceptorId = api.value.interceptors.response.use(
             response => response,
             async error => {
                 if (!error.response) return Promise.reject(error);
@@ -39,6 +62,19 @@ export const useApiStore = defineStore('api', () => {
                 const baseSlug = currentApp?.baseSlug ? `/${currentApp.baseSlug}` : '';
 
                 if (status === 401) {
+                    if (DEV_BYPASS && !error.config._retry) {
+                        error.config._retry = true;
+                        try {
+                            localStorage.removeItem('ste_auth_token');
+                            await tryAutoLogin();
+                            const token = getToken();
+                            if (token && token !== 'bypass-pending') {
+                                setApiAuthorizationHeader(token);
+                                error.config.headers['Authorization'] = `Bearer ${token}`;
+                                return api.value.request(error.config);
+                            }
+                        } catch { /* fall through */ }
+                    }
                     logout();
                     await router.push('/login');
                 }

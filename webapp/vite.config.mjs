@@ -8,7 +8,7 @@ import { PrimeVueResolver } from 'unplugin-vue-components/resolvers';
 export default defineConfig(() => {
     return {
         build: { sourcemap: process.env.VITE_ENABLE_SOURCEMAP === 'true' },
-        server: { port: 7208, https: true },
+        server: { port: 7210, https: true },
         plugins: [vue(), mkcert(), Components({ resolvers: [PrimeVueResolver()] })],
         resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     };

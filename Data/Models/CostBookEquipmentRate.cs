@@ -1,10 +1,12 @@
+using System.Text.Json.Serialization;
+
 namespace Stronghold.EnterpriseEstimating.Data.Models;
 
 public class CostBookEquipmentRate
 {
     public int CostBookEquipmentRateId { get; set; }
     public int CostBookId { get; set; }
-    public CostBook CostBook { get; set; } = null!;
+    [JsonIgnore] public CostBook CostBook { get; set; } = null!;
 
     public string Name { get; set; } = string.Empty;
     public decimal? Hourly { get; set; }

@@ -7,6 +7,7 @@ import { staffingFormRoutes } from '@/modules/estimating/features/staffing-form/
 import { rateBookRoutes } from '@/modules/estimating/features/rate-book/router';
 import { costBookRoutes } from '@/modules/estimating/features/cost-book/router';
 import { analyticsRoutes } from '@/modules/estimating/features/analytics/router';
+import { crewTemplateRoutes } from '@/modules/estimating/features/crew-templates/router';
 
 export const estimatingRoutes = [
     { path: '', redirect: `/${apps.estimating.baseSlug}/estimates` },
@@ -17,5 +18,6 @@ export const estimatingRoutes = [
     ...rateBookRoutes,
     ...costBookRoutes,
     ...analyticsRoutes,
+    ...crewTemplateRoutes,
     ...getErrorRoutes(apps.estimating),
 ];

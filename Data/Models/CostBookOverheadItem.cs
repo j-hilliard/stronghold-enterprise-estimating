@@ -1,10 +1,12 @@
+using System.Text.Json.Serialization;
+
 namespace Stronghold.EnterpriseEstimating.Data.Models;
 
 public class CostBookOverheadItem
 {
     public int CostBookOverheadItemId { get; set; }
     public int CostBookId { get; set; }
-    public CostBook CostBook { get; set; } = null!;
+    [JsonIgnore] public CostBook CostBook { get; set; } = null!;
 
     public string Category { get; set; } = string.Empty; // Burden, Insurance, Other
     public string Code { get; set; } = string.Empty;

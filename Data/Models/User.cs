@@ -14,5 +14,6 @@ public class User
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset ModifiedOn { get; set; } = DateTimeOffset.UtcNow;
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    public ICollection<UserCompany> UserCompanies { get; set; } = new List<UserCompany>();
     public UserProfileSettings? Profile { get; set; }
 }

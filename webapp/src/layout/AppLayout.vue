@@ -27,6 +27,7 @@
             </div>
         </div>
         <div v-if="staticMenuMobileActive" class="layout-mask modal-in" @click="staticMenuMobileActive = false"></div>
+        <AiChatSidebar :current-page="currentAiPage" />
     </div>
 </template>
 
@@ -36,6 +37,7 @@ import { useToast } from 'primevue/usetoast';
 import EventBus from '@/layout/event-bus.ts';
 import TheMenu from '@/components/layout/TheMenu.vue';
 import TheTopBar from '@/components/layout/TheTopBar.vue';
+import AiChatSidebar from '@/modules/estimating/components/AiChatSidebar.vue';
 import { useAppStore } from '@/stores/appStore.ts';
 import { ref, computed, onBeforeMount, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -59,6 +61,16 @@ const staticMenuDesktopInactive = ref(false);
 const appStore = useAppStore();
 const toast = useToast();
 const route = useRoute();
+
+const currentAiPage = computed(() => {
+    const name = (route.name as string) ?? '';
+    if (name.includes('estimate') && (name.includes('form') || name.includes('new') || name.includes('edit'))) return 'estimate';
+    if (name.includes('staffing') && (name.includes('form') || name.includes('new') || name.includes('edit'))) return 'staffing';
+    if (name.includes('revenue') || name.includes('manpower') || name.includes('analytics')) return 'analytics';
+    if (name.includes('global')) return 'global-analytics';
+    if (name.includes('estimate')) return 'estimates-list';
+    return 'general';
+});
 
 const isMobile = computed(() => {
     return window.innerWidth <= 640;

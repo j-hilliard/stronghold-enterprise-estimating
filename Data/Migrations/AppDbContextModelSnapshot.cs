@@ -17,10 +17,46 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "7.0.20")
+                .HasAnnotation("ProductVersion", "10.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.Company", b =>
+                {
+                    b.Property<string>("CompanyCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("JobLetter")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("OpuNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ShortName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("CompanyCode");
+
+                    b.ToTable("Companies");
+                });
 
             modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.CostBook", b =>
                 {
@@ -377,6 +413,9 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Property<int>("Days")
                         .HasColumnType("int");
 
+                    b.Property<string>("Director")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("DtWeekends")
                         .HasColumnType("bit");
 
@@ -391,10 +430,16 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Property<decimal>("HoursPerShift")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<bool>("IsScenario")
+                        .HasColumnType("bit");
+
                     b.Property<string>("JobLetter")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("JobType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LostNotes")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("LostReason")
@@ -412,6 +457,12 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<int?>("RateBookId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Region")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Shift")
                         .IsRequired()
@@ -441,7 +492,12 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("VP")
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("EstimateId");
+
+                    b.HasIndex("RateBookId");
 
                     b.HasIndex("StaffingPlanId");
 
@@ -462,11 +518,29 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("EquipCount")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("EquipTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("EstimateId")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("GrandTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<bool>("IsCurrent")
                         .HasColumnType("bit");
+
+                    b.Property<int>("LaborCount")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("LaborTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("RevisionNumber")
                         .HasColumnType("int");
@@ -552,8 +626,8 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("GrossMarginPct")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("decimal(5,4)");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<decimal>("GrossProfit")
                         .HasPrecision(18, 2)
@@ -806,6 +880,9 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Property<DateTime?>("EffectiveDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("ExpiresDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("IsStandardBaseline")
                         .HasColumnType("bit");
 
@@ -826,6 +903,84 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.HasKey("RateBookId");
 
                     b.ToTable("RateBooks");
+                });
+
+            modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.RateBookEquipmentRate", b =>
+                {
+                    b.Property<int>("RateBookEquipmentRateId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RateBookEquipmentRateId"));
+
+                    b.Property<decimal?>("Daily")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("Hourly")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("Monthly")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RateBookId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("Weekly")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("RateBookEquipmentRateId");
+
+                    b.HasIndex("RateBookId");
+
+                    b.ToTable("RateBookEquipmentRates");
+                });
+
+            modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.RateBookExpenseItem", b =>
+                {
+                    b.Property<int>("RateBookExpenseItemId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RateBookExpenseItemId"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("RateBookId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("RateBookExpenseItemId");
+
+                    b.HasIndex("RateBookId");
+
+                    b.ToTable("RateBookExpenseItems");
                 });
 
             modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.RateBookLaborRate", b =>
@@ -1158,6 +1313,21 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.UserCompany", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CompanyCode")
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("UserId", "CompanyCode");
+
+                    b.HasIndex("CompanyCode");
+
+                    b.ToTable("UserCompanies");
+                });
+
             modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.UserProfileSettings", b =>
                 {
                     b.Property<int>("ProfileId")
@@ -1272,10 +1442,16 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
 
             modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.Estimate", b =>
                 {
+                    b.HasOne("Stronghold.EnterpriseEstimating.Data.Models.RateBook", "RateBook")
+                        .WithMany()
+                        .HasForeignKey("RateBookId");
+
                     b.HasOne("Stronghold.EnterpriseEstimating.Data.Models.StaffingPlan", "StaffingPlan")
                         .WithMany("Estimates")
                         .HasForeignKey("StaffingPlanId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("RateBook");
 
                     b.Navigation("StaffingPlan");
                 });
@@ -1335,6 +1511,28 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Navigation("Estimate");
                 });
 
+            modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.RateBookEquipmentRate", b =>
+                {
+                    b.HasOne("Stronghold.EnterpriseEstimating.Data.Models.RateBook", "RateBook")
+                        .WithMany("EquipmentRates")
+                        .HasForeignKey("RateBookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RateBook");
+                });
+
+            modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.RateBookExpenseItem", b =>
+                {
+                    b.HasOne("Stronghold.EnterpriseEstimating.Data.Models.RateBook", "RateBook")
+                        .WithMany("ExpenseItems")
+                        .HasForeignKey("RateBookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RateBook");
+                });
+
             modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.RateBookLaborRate", b =>
                 {
                     b.HasOne("Stronghold.EnterpriseEstimating.Data.Models.RateBook", "RateBook")
@@ -1386,6 +1584,25 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Navigation("ConvertedEstimate");
                 });
 
+            modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.UserCompany", b =>
+                {
+                    b.HasOne("Stronghold.EnterpriseEstimating.Data.Models.Company", "Company")
+                        .WithMany("UserCompanies")
+                        .HasForeignKey("CompanyCode")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Stronghold.EnterpriseEstimating.Data.Models.User", "User")
+                        .WithMany("UserCompanies")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Company");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.UserProfileSettings", b =>
                 {
                     b.HasOne("Stronghold.EnterpriseEstimating.Data.Models.User", "User")
@@ -1414,6 +1631,11 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.Company", b =>
+                {
+                    b.Navigation("UserCompanies");
                 });
 
             modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.CostBook", b =>
@@ -1454,6 +1676,10 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
 
             modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.RateBook", b =>
                 {
+                    b.Navigation("EquipmentRates");
+
+                    b.Navigation("ExpenseItems");
+
                     b.Navigation("LaborRates");
                 });
 
@@ -1474,6 +1700,8 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
             modelBuilder.Entity("Stronghold.EnterpriseEstimating.Data.Models.User", b =>
                 {
                     b.Navigation("Profile");
+
+                    b.Navigation("UserCompanies");
 
                     b.Navigation("UserRoles");
                 });

@@ -19,6 +19,9 @@ public class Estimate
     public string? State { get; set; }
     public string? Site { get; set; }
     public string? JobLetter { get; set; }
+    public string? VP { get; set; }
+    public string? Director { get; set; }
+    public string? Region { get; set; }
 
     // Schedule
     public string Shift { get; set; } = "Day"; // Day, Night, Both
@@ -35,11 +38,16 @@ public class Estimate
     public string Status { get; set; } = "Draft"; // Draft, Pending, Awarded, Lost, Canceled
     public decimal ConfidencePct { get; set; } = 50;
     public string? LostReason { get; set; }
+    public string? LostNotes { get; set; }
+    public bool IsScenario { get; set; } = false;
 
     public string CreatedBy { get; set; } = string.Empty;
     public string? UpdatedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public int? RateBookId { get; set; }
+    public RateBook? RateBook { get; set; }
 
     public ICollection<LaborRow> LaborRows { get; set; } = new List<LaborRow>();
     public ICollection<EquipmentRow> EquipmentRows { get; set; } = new List<EquipmentRow>();
