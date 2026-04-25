@@ -28,6 +28,15 @@ Start-Process powershell `
     -WorkingDirectory $AppRoot `
     -ArgumentList "-NoExit", "-Command", "dotnet run --project Api --launch-profile https"
 
+# ── Start Cloudflare tunnel ───────────────────────────────────────────────────
+Write-Host "  Starting Cloudflare tunnel..." -ForegroundColor Yellow
+Stop-Process -Name "cloudflared" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+$cfLog = "$env:TEMP\cf-tunnel-$((Get-Date).Ticks).log"
+Start-Process powershell `
+    -WindowStyle Minimized `
+    -ArgumentList "-NoExit", "-Command", "& 'C:\Program Files (x86)\cloudflared\cloudflared.exe' tunnel --url https://localhost:7211 2>&1 | Tee-Object -FilePath '$cfLog'"
+
 # ── Start Vue window ──────────────────────────────────────────────────────────
 Write-Host "  Starting Vue dev server..." -ForegroundColor Yellow
 Start-Process powershell `
@@ -81,12 +90,60 @@ if ($viteReady) {
     Write-Host "  Vue may still be starting -- opening browser anyway" -ForegroundColor Yellow
 }
 
+# ── Grab tunnel URL from log ──────────────────────────────────────────────────
+Write-Host "  Waiting for tunnel URL..." -ForegroundColor Yellow
+$tunnelUrl = $null
+for ($i = 0; $i -lt 20; $i++) {
+    Start-Sleep -Seconds 2
+    if (Test-Path $cfLog) {
+        $tunnelUrl = Select-String -Path $cfLog -Pattern "trycloudflare\.com" |
+            Select-Object -First 1 |
+            ForEach-Object { ($_.Line -replace '.*https://', 'https://') -replace '\s.*', '' }
+        if ($tunnelUrl) { break }
+    }
+}
+
+# ── Push tunnel URL to Cloudflare Worker secret ───────────────────────────────
+$cfAccountId  = "95714f404b7d0fdfc428c954c99b46a0"
+$cfApiToken   = $env:CF_API_TOKEN   # set this in Windows Environment Variables
+$cfWorkerName = "stronghold-agent"
+
+if ($tunnelUrl -and $cfApiToken) {
+    Write-Host "  Updating Worker TUNNEL_URL → $tunnelUrl ..." -ForegroundColor Yellow
+    try {
+        $body = (@{ name = "TUNNEL_URL"; text = $tunnelUrl; type = "secret_text" } | ConvertTo-Json)
+        $resp = Invoke-RestMethod `
+            -Uri "https://api.cloudflare.com/client/v4/accounts/$cfAccountId/workers/scripts/$cfWorkerName/secrets" `
+            -Method PUT `
+            -Headers @{ Authorization = "Bearer $cfApiToken"; "Content-Type" = "application/json" } `
+            -Body $body
+        if ($resp.success) {
+            Write-Host "  Worker secret updated — permanent URL active." -ForegroundColor Green
+        } else {
+            Write-Host "  Worker update returned: $($resp | ConvertTo-Json -Compress)" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  Worker secret update failed: $_" -ForegroundColor Yellow
+    }
+} elseif ($tunnelUrl -and -not $cfApiToken) {
+    Write-Host "  Skipping Worker update — CF_API_TOKEN env var not set." -ForegroundColor DarkGray
+}
+
 # ── Open browser ──────────────────────────────────────────────────────────────
 Start-Process "https://localhost:7210"
 
 Write-Host ""
 Write-Host "  App:  https://localhost:7210" -ForegroundColor Green
 Write-Host "  API:  https://localhost:7211" -ForegroundColor Green
+Write-Host ""
+Write-Host "  ╔═══════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "  ║  AI FOUNDRY → EstimatingAgent URL (PERMANENT — never changes)   ║" -ForegroundColor Cyan
+Write-Host "  ╠═══════════════════════════════════════════════════════════════════╣" -ForegroundColor Cyan
+Write-Host "  ║  https://stronghold-agent.j-travishilliard.workers.dev          ║" -ForegroundColor Yellow
+Write-Host "  ╚═══════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+if (-not $tunnelUrl) {
+    Write-Host "  WARNING: Tunnel URL not detected — check minimized Cloudflare window." -ForegroundColor Red
+}
 Write-Host ""
 Write-Host "  Both servers are running in their own windows." -ForegroundColor DarkGray
 Write-Host "  Close those windows to shut them down." -ForegroundColor DarkGray

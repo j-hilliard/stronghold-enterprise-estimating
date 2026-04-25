@@ -1,0 +1,201 @@
+openapi: 3.0.3
+info:
+  title: Stronghold Estimating — Agent API
+  description: |
+    Read-only SQL access for the Azure AI Foundry EstimatingAgent.
+    All mutating keywords (DROP, DELETE, UPDATE, INSERT, etc.) are blocked server-side.
+    Authentication uses a static API key passed in the x-api-key header.
+  version: "1.0"
+
+servers:
+  - url: https://stronghold-agent.j-travishilliard.workers.dev
+    description: Cloudflare Worker (permanent URL) → tunnel → local dev API
+  - url: https://localhost:7211
+    description: Local dev direct
+
+security:
+  - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+
+  schemas:
+    QueryRequest:
+      type: object
+      required:
+        - sql
+      properties:
+        sql:
+          type: string
+          description: A SELECT-only T-SQL query against the StrongholdEstimating_Demo database.
+          example: "SELECT TOP 10 JobNumber, Name, Status, Client FROM Estimates ORDER BY CreatedAt DESC"
+
+    QueryResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          description: Array of row objects, keys are column names.
+        rowCount:
+          type: integer
+
+    SchemaTable:
+      type: object
+      properties:
+        tableName:
+          type: string
+        schema:
+          type: string
+        columns:
+          type: array
+          items:
+            type: object
+            properties:
+              columnName:
+                type: string
+              dataType:
+                type: string
+              isNullable:
+                type: string
+                enum: [YES, NO]
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, unavailable]
+        database:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+
+paths:
+  /api/agent/health:
+    get:
+      operationId: agentHealth
+      summary: Check API and database connectivity
+      description: Returns ok when the API is running and the SQL database is reachable. No API key required.
+      security: []
+      responses:
+        "200":
+          description: API and database are healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Database unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/agent/schema:
+    get:
+      operationId: agentSchema
+      summary: Return full database schema (tables + columns)
+      description: |
+        Returns every base table in the database with its column names, data types, and nullability.
+        Use this before writing queries to understand the available tables and their structure.
+      responses:
+        "200":
+          description: Schema retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tables:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SchemaTable"
+        "401":
+          description: Missing or invalid x-api-key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: API key not configured on server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/agent/query:
+    post:
+      operationId: agentQuery
+      summary: Execute a SELECT query and return rows
+      description: |
+        Runs the provided T-SQL SELECT statement against the live database and returns all matching rows.
+        Only SELECT statements are accepted — any query containing mutating keywords
+        (DROP, DELETE, UPDATE, INSERT, EXEC, TRUNCATE, ALTER, CREATE, XP_, SP_) will be rejected with 403.
+        Query timeout is 15 seconds.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryRequest"
+            examples:
+              pipelineSummary:
+                summary: Pipeline summary by status
+                value:
+                  sql: "SELECT Status, COUNT(*) AS JobCount, SUM(TotalValue) AS TotalValue FROM Estimates WHERE CompanyCode = 'CSL' GROUP BY Status"
+              activeJobs:
+                summary: Jobs active today
+                value:
+                  sql: "SELECT JobNumber, Name, Client, StartDate, EndDate FROM Estimates WHERE Status = 'Awarded' AND StartDate <= GETDATE() AND EndDate >= GETDATE()"
+              topClients:
+                summary: Top clients by submitted value
+                value:
+                  sql: "SELECT TOP 5 Client, COUNT(*) AS Jobs, SUM(TotalValue) AS Value FROM Estimates WHERE Status IN ('Submitted','Awarded') GROUP BY Client ORDER BY Value DESC"
+      responses:
+        "200":
+          description: Query executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResponse"
+        "400":
+          description: sql field missing or empty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid x-api-key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Query rejected — only SELECT statements are permitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: SQL execution error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: API key not configured on server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

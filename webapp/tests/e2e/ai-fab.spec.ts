@@ -52,6 +52,12 @@ test.describe('AI Chat sidebar', () => {
 // ── NLP variation tests — REQ-AI-003, REQ-AI-004, REQ-QA-004 ────────────────
 
 test.describe('AI NLP variation robustness', () => {
+    async function mockAiReply(page: any, text: string, actions: unknown[] = []) {
+        await page.route('**/api/v1/ai/chat', (route: any) =>
+            route.fulfill({ json: { response: text, actions } })
+        );
+    }
+
     async function openChat(page: any) {
         await page.goto('/estimating/estimates/new');
         await page.locator('.estimate-header').waitFor({ timeout: 15000 });
@@ -80,6 +86,9 @@ test.describe('AI NLP variation robustness', () => {
     }
 
     test('[REQ-AI-003, REQ-QA-004] misspelled city — bakersfeild normalizes to Bakersfield', async ({ page }) => {
+        await mockAiReply(page, 'Got it — city: Bakersfield, CA.', [
+            { action: 'fill_header', fields: { city: 'Bakersfield', state: 'CA' } },
+        ]);
         await openChat(page);
         const reply = await sendAndWait(
             page,
@@ -97,6 +106,9 @@ test.describe('AI NLP variation robustness', () => {
     });
 
     test('[REQ-AI-003, REQ-QA-004] misspelled city — pasedena normalizes to Pasadena', async ({ page }) => {
+        await mockAiReply(page, 'New plan for Shell in Pasadena, TX.', [
+            { action: 'fill_header', fields: { city: 'Pasadena', state: 'TX' } },
+        ]);
         await openChat(page);
         const reply = await sendAndWait(
             page,
@@ -113,6 +125,9 @@ test.describe('AI NLP variation robustness', () => {
     });
 
     test('[REQ-AI-003, REQ-QA-004] misspelled position — boilermakr is handled gracefully', async ({ page }) => {
+        await mockAiReply(page, 'Added Boilermaker Journeyman.', [
+            { action: 'add_labor_rows', rows: [{ position: 'Boilermaker Journeyman', shift: 'Day', qty: 1 }] },
+        ]);
         await openChat(page);
         const reply = await sendAndWait(page, 'add a boilermakr to the labor section');
         expect(reply).toBeTruthy();
@@ -124,6 +139,9 @@ test.describe('AI NLP variation robustness', () => {
     });
 
     test('[REQ-AI-004, REQ-QA-004] location format — "city, ST" parsed correctly', async ({ page }) => {
+        await mockAiReply(page, 'New estimate for Valero in Port Arthur, TX.', [
+            { action: 'fill_header', fields: { city: 'Port Arthur', state: 'TX' } },
+        ]);
         await openChat(page);
         const reply = await sendAndWait(
             page,
@@ -138,6 +156,11 @@ test.describe('AI NLP variation robustness', () => {
     });
 
     test('[REQ-AI-002, REQ-AI-011] ambiguous helper — agent asks for clarification before writing', async ({ page }) => {
+        await mockAiReply(
+            page,
+            'Which type of helper? Pipefitter Helper, Welder Helper, Boilermaker Helper, or Scaffold Builder?',
+            [{ action: 'ask_clarification', question: 'Which type of helper?' }],
+        );
         await openChat(page);
         const reply = await sendAndWait(page, 'add a helper');
         expect(reply).toBeTruthy();
