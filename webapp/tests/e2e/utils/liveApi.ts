@@ -82,7 +82,7 @@ export async function apiDelete(request: APIRequestContext, path: string): Promi
 
 /** Seed dev data (rate books, cost book, estimates). 409 = already seeded — treated as OK. */
 export async function seedDevData(request: APIRequestContext): Promise<void> {
-    const resp = await request.post(`${API_BASE_URL}/api/v1/dev/seed`, {
+    const resp = await request.post(`${API_BASE_URL}/api/v1.0/dev/seed`, {
         headers: await authedHeaders(request),
         ignoreHTTPSErrors: true,
     });
@@ -91,18 +91,25 @@ export async function seedDevData(request: APIRequestContext): Promise<void> {
     }
 }
 
-/** Reset all seeded dev data. Wipes estimates, rate books, staffing plans. */
-export async function resetDevData(request: APIRequestContext): Promise<void> {
-    const resp = await request.post(`${API_BASE_URL}/api/v1/dev/reset`, {
+/** Reset seeded dev data. Cost books are preserved unless explicitly requested. */
+export async function resetDevData(
+    request: APIRequestContext,
+    options: { includeCostBooks?: boolean } = {},
+): Promise<void> {
+    const suffix = options.includeCostBooks ? '?includeCostBooks=true' : '';
+    const resp = await request.post(`${API_BASE_URL}/api/v1.0/dev/reset${suffix}`, {
         headers: await authedHeaders(request),
         ignoreHTTPSErrors: true,
     });
     if (!resp.ok()) throw new Error(`dev/reset failed: ${resp.status()}: ${await resp.text()}`);
 }
 
-/** Seed cost book with standard burden rates and positions. */
+/** Ensure a cost book exists without resetting an existing demo cost book. */
 export async function seedCostBook(request: APIRequestContext): Promise<void> {
-    const resp = await request.post(`${API_BASE_URL}/api/v1/cost-books/reset-standard`, {
+    const existing = await apiGet<any[]>(request, '/api/v1.0/cost-books');
+    if (existing.length > 0) return;
+
+    const resp = await request.post(`${API_BASE_URL}/api/v1.0/cost-books/reset-standard`, {
         headers: await authedHeaders(request),
         ignoreHTTPSErrors: true,
     });

@@ -181,7 +181,10 @@ public class RateBooksController : ControllerBase
 
         db.RateBooks.Add(book);
         await db.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(Get), new { id = book.RateBookId, version = "1.0" }, new { book.RateBookId });
+
+        var autoAdded = await EnsureCostBookCoverage(db, CompanyCode, dto.LaborRates, ct);
+        return CreatedAtAction(nameof(Get), new { id = book.RateBookId, version = "1.0" },
+            new { book.RateBookId, autoAddedToCostBook = autoAdded });
     }
 
     [HttpPut("{id:int}")]
@@ -261,6 +264,11 @@ public class RateBooksController : ControllerBase
         }
 
         await db.SaveChangesAsync(ct);
+
+        var autoAdded = await EnsureCostBookCoverage(db, CompanyCode, dto.LaborRates, ct);
+        if (autoAdded.Count > 0)
+            return Ok(new { message = "Saved. Some positions were auto-added to the Standard Cost Book.", autoAddedToCostBook = autoAdded });
+
         return NoContent();
     }
 
@@ -340,6 +348,62 @@ public class RateBooksController : ControllerBase
         db.RateBooks.Add(clone);
         await db.SaveChangesAsync(ct);
         return Ok(new { rateBookId = clone.RateBookId, name = clone.Name });
+    }
+
+    /// <summary>
+    /// Checks each labor rate position in the rate book against the company's cost books.
+    /// Any position not found in ANY cost book is auto-added to the default cost book at 100% of
+    /// the rate book rate, with NeedsReview=true so the user knows to set the real cost rate.
+    /// Returns the list of position names that were auto-added.
+    /// </summary>
+    private static async Task<List<string>> EnsureCostBookCoverage(
+        AppDbContext db, string companyCode,
+        List<RateBookLaborRateDto>? laborRates,
+        CancellationToken ct)
+    {
+        if (laborRates == null || laborRates.Count == 0) return [];
+
+        // Get all positions already covered in any cost book for this company
+        var covered = await db.CostBookLaborRates
+            .Where(r => r.CostBook.CompanyCode == companyCode)
+            .Select(r => r.Position)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var coveredSet = new HashSet<string>(covered, StringComparer.OrdinalIgnoreCase);
+        var missing = laborRates.Where(r => !coveredSet.Contains(r.Position)).ToList();
+        if (missing.Count == 0) return [];
+
+        // Find the default cost book to add missing positions into
+        var defaultBook = await db.CostBooks
+            .Include(cb => cb.LaborRates)
+            .FirstOrDefaultAsync(cb => cb.CompanyCode == companyCode && cb.IsDefault, ct);
+
+        if (defaultBook == null) return [];
+
+        var nextSort = defaultBook.LaborRates.Count > 0 ? defaultBook.LaborRates.Max(r => r.SortOrder) + 1 : 0;
+        var autoAdded = new List<string>();
+
+        foreach (var r in missing)
+        {
+            // Add at 100% of bill rate with NeedsReview flag — user must set real cost rate
+            defaultBook.LaborRates.Add(new CostBookLaborRate
+            {
+                Position    = r.Position,
+                LaborType   = r.LaborType,
+                CraftCode   = r.CraftCode,
+                NavCode     = r.NavCode,
+                StRate      = r.StRate,
+                OtRate      = r.OtRate,
+                DtRate      = r.DtRate,
+                NeedsReview = true,
+                SortOrder   = nextSort++,
+            });
+            autoAdded.Add(r.Position);
+        }
+
+        await db.SaveChangesAsync(ct);
+        return autoAdded;
     }
 }
 

@@ -12,14 +12,28 @@
         </template>
         <template #content>
             <DataTable :value="rows" class="equipment-table" size="small" :scrollable="true" scrollHeight="400px">
-                <Column header="Name" style="min-width:200px">
+                <Column header="Name" style="min-width:220px">
                     <template #body="{ data, index }">
-                        <InputText v-model="data.name" placeholder="Equipment name" class="w-full" @input="onChange(index)" />
+                        <Dropdown
+                            v-if="hasRateBook"
+                            v-model="data.name"
+                            :options="equipmentNames"
+                            placeholder="Select equipment"
+                            class="w-full"
+                            @change="onNameSelected(index)"
+                        />
+                        <InputText
+                            v-else
+                            v-model="data.name"
+                            placeholder="Equipment name"
+                            class="w-full"
+                            @input="onChange(index)"
+                        />
                     </template>
                 </Column>
                 <Column header="Rate Type" style="min-width:130px">
                     <template #body="{ data, index }">
-                        <Dropdown v-model="data.rateType" :options="rateTypeOptions" class="w-full" @change="recalc(index)" />
+                        <Dropdown v-model="data.rateType" :options="rateTypeOptions" class="w-full" @change="onRateTypeChange(index)" />
                     </template>
                 </Column>
                 <Column header="Rate" style="min-width:120px">
@@ -65,12 +79,43 @@ import { computed } from 'vue';
 import Card from 'primevue/card';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
-import type { EquipmentRow } from '../../../stores/estimateStore';
+import type { EquipmentRow, RateBookEquipmentRate } from '../../../stores/estimateStore';
 
-const props = defineProps<{ rows: EquipmentRow[]; defaultDays?: number }>();
+const props = defineProps<{
+    rows: EquipmentRow[];
+    defaultDays?: number;
+    rateBookEquipmentRates?: RateBookEquipmentRate[];
+}>();
 const emits = defineEmits<{ (e: 'update:rows', v: EquipmentRow[]): void; (e: 'change'): void }>();
 
 const rateTypeOptions = ['Daily', 'Weekly', 'Monthly', 'Hourly'];
+
+const hasRateBook = computed(() => (props.rateBookEquipmentRates ?? []).length > 0);
+
+const equipmentNames = computed(() =>
+    (props.rateBookEquipmentRates ?? []).map(r => r.name)
+);
+
+function getRateForType(name: string, rateType: string): number {
+    const entry = (props.rateBookEquipmentRates ?? []).find(r => r.name === name);
+    if (!entry) return 0;
+    const key = rateType.toLowerCase() as 'hourly' | 'daily' | 'weekly' | 'monthly';
+    return Number(entry[key] ?? 0);
+}
+
+function onNameSelected(idx: number) {
+    const r = props.rows[idx];
+    r.rate = getRateForType(r.name, r.rateType);
+    recalc(idx);
+}
+
+function onRateTypeChange(idx: number) {
+    const r = props.rows[idx];
+    if (r.name && hasRateBook.value) {
+        r.rate = getRateForType(r.name, r.rateType);
+    }
+    recalc(idx);
+}
 
 function recalc(idx: number) {
     const r = props.rows[idx];

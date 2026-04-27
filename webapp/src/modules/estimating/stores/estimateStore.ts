@@ -28,7 +28,7 @@ export interface EstimateHeader {
     startDate?: string;
     endDate?: string;
     otMethod: string;
-    dtWeekends: boolean;
+    dtWeekends: string;
     status: string;
     confidencePct: number;
     lostReason?: string;
@@ -71,6 +71,7 @@ export interface EquipmentRow {
 export interface ExpenseRow {
     expenseRowId?: number;
     category: string;
+    type: string;       // 'Direct' | 'Indirect'
     description: string;
     rate: number;
     unit: string;
@@ -79,6 +80,21 @@ export interface ExpenseRow {
     billable: boolean;
     subtotal: number;
     sortOrder?: number;
+}
+
+export interface RateBookEquipmentRate {
+    name: string;
+    hourly?: number | null;
+    daily?: number | null;
+    weekly?: number | null;
+    monthly?: number | null;
+}
+
+export interface RateBookExpenseItem {
+    category: string;
+    description: string;
+    rate: number;
+    unit: string;
 }
 
 export interface EstimateSummary {
@@ -126,7 +142,7 @@ export function defaultHeader(): EstimateHeader {
         hoursPerShift: 10,
         days: 0,
         otMethod: 'daily8',
-        dtWeekends: false,
+        dtWeekends: 'none',
         status: 'Draft',
         confidencePct: 50,
     };
@@ -160,6 +176,8 @@ export const useEstimateStore = defineStore('estimate', () => {
     const revisions = ref<EstimateRevision[]>([]);
     const rateBookRates = ref<RateBookRate[]>([]);
     const rateBookName = ref<string>('');
+    const rateBookEquipmentRates = ref<RateBookEquipmentRate[]>([]);
+    const rateBookExpenseItems = ref<RateBookExpenseItem[]>([]);
     const isDirty = ref(false);
     const isLoading = ref(false);
     const isSaving = ref(false);
@@ -233,6 +251,8 @@ export const useEstimateStore = defineStore('estimate', () => {
         revisions.value = [];
         rateBookRates.value = [];
         rateBookName.value = '';
+        rateBookEquipmentRates.value = [];
+        rateBookExpenseItems.value = [];
         isDirty.value = false;
     }
 
@@ -252,6 +272,66 @@ export const useEstimateStore = defineStore('estimate', () => {
         }));
         rateBookName.value = data.name ?? '';
         header.value.rateBookId = rateBookId;
+        // Auto-populate client fields from rate book when they are blank
+        if (data.clientCode && !header.value.clientCode) header.value.clientCode = data.clientCode;
+        if (data.client && !header.value.client)          header.value.client     = data.client;
+        // Cache equipment rates and expense items for use in the form sections
+        rateBookEquipmentRates.value = (data.equipmentRates ?? []).map((r: any) => ({
+            name:    r.name ?? '',
+            hourly:  r.hourly  != null ? Number(r.hourly)  : null,
+            daily:   r.daily   != null ? Number(r.daily)   : null,
+            weekly:  r.weekly  != null ? Number(r.weekly)  : null,
+            monthly: r.monthly != null ? Number(r.monthly) : null,
+        }));
+        rateBookExpenseItems.value = (data.expenseItems ?? []).map((r: any) => ({
+            category:    r.category    ?? 'PerDiem',
+            description: r.description ?? '',
+            rate:        Number(r.rate ?? 0),
+            unit:        r.unit        ?? 'Day',
+        }));
+
+        applyRateBookToRows();
+    }
+
+    function findRateBookRate(position: string, laborType?: string) {
+        const normalizedPosition = position.trim().toLowerCase();
+        const normalizedType = laborType?.trim().toLowerCase();
+
+        return rateBookRates.value.find(
+            r => r.position.trim().toLowerCase() === normalizedPosition
+              && (!normalizedType || r.laborType.trim().toLowerCase() === normalizedType)
+        ) ?? rateBookRates.value.find(
+            r => r.position.trim().toLowerCase() === normalizedPosition
+        );
+    }
+
+    function applyRateBookRateToRow(row: LaborRow, fallback?: {
+        billStRate?: number;
+        billOtRate?: number;
+        billDtRate?: number;
+    }) {
+        const match = findRateBookRate(row.position, row.laborType);
+        if (match) {
+            row.laborType = match.laborType || row.laborType;
+            row.craftCode = match.craftCode;
+            row.navCode = match.navCode;
+            row.billStRate = match.stRate;
+            row.billOtRate = match.otRate;
+            row.billDtRate = match.dtRate;
+            return;
+        }
+
+        row.billStRate = fallback?.billStRate ?? row.billStRate;
+        row.billOtRate = fallback?.billOtRate ?? row.billOtRate;
+        row.billDtRate = fallback?.billDtRate ?? row.billDtRate;
+    }
+
+    function applyRateBookToRows() {
+        for (const row of laborRows.value) {
+            applyRateBookRateToRow(row);
+            recalcLaborRow(row);
+        }
+        recalcSummary();
     }
 
     function clearRateBook() {
@@ -290,7 +370,9 @@ export const useEstimateStore = defineStore('estimate', () => {
                 startDate: data.startDate?.slice(0, 10),
                 endDate: data.endDate?.slice(0, 10),
                 otMethod: data.otMethod,
-                dtWeekends: data.dtWeekends,
+                dtWeekends: typeof data.dtWeekends === 'boolean'
+                    ? (data.dtWeekends ? 'sat_sun' : 'none')
+                    : (data.dtWeekends ?? 'none'),
                 status: data.status,
                 confidencePct: data.confidencePct,
                 lostReason: data.lostReason,
@@ -399,6 +481,7 @@ export const useEstimateStore = defineStore('estimate', () => {
             // Save expense rows
             await apiStore.api.post(`/api/v1/estimates/${estimateId}/expenses`, expenseRows.value.map(r => ({
                 category: r.category,
+                type: r.type ?? 'Direct',
                 description: r.description,
                 rate: r.rate,
                 unit: r.unit,
@@ -451,7 +534,7 @@ export const useEstimateStore = defineStore('estimate', () => {
         markDirty();
     }
 
-    // Called by AI sidecar: adds qty copies of position+shift with rates from loaded rate book
+    // Called by AI sidecar: one row per position with qty as daily headcount
     function addLaborRowFromAi(opts: {
         position: string;
         shift: string;
@@ -460,21 +543,64 @@ export const useEstimateStore = defineStore('estimate', () => {
         billOtRate?: number;
         billDtRate?: number;
     }) {
-        const count = Math.max(1, opts.qty ?? 1);
-        for (let i = 0; i < count; i++) {
+        const qty = Math.max(1, opts.qty ?? 1);
+        const rowShift = opts.shift || header.value.shift || 'Day';
+
+        // Build schedule with qty headcount for every day in the job range
+        function buildAiSchedule(): string {
+            const start = header.value.startDate;
+            const end = header.value.endDate;
+            if (!start || !end) return '{}';
+            const sched: Record<string, number> = {};
+            const cur = new Date(start + 'T12:00:00');
+            const endDate = new Date(end + 'T12:00:00');
+            while (cur <= endDate) {
+                sched[cur.toISOString().slice(0, 10)] = qty;
+                cur.setDate(cur.getDate() + 1);
+            }
+            return JSON.stringify(sched);
+        }
+
+        // Merge with existing row of same position+shift if present
+        const existing = laborRows.value.find(r => r.position === opts.position && r.shift === rowShift);
+        if (existing) {
+            applyRateBookRateToRow(existing, opts);
+            let sched: Record<string, number> = {};
+            try { sched = JSON.parse(existing.scheduleJson ?? '{}'); } catch { /* */ }
+            const start = header.value.startDate;
+            const end = header.value.endDate;
+            if (start && end) {
+                const cur = new Date(start + 'T12:00:00');
+                const endDate = new Date(end + 'T12:00:00');
+                while (cur <= endDate) {
+                    const iso = cur.toISOString().slice(0, 10);
+                    sched[iso] = (sched[iso] ?? 0) + qty;
+                    cur.setDate(cur.getDate() + 1);
+                }
+            }
+            existing.scheduleJson = JSON.stringify(sched);
+            recalcLaborRow(existing);
+        } else {
+            const scheduleJson = buildAiSchedule();
+            const match = findRateBookRate(opts.position, 'Direct');
             laborRows.value.push({
                 position: opts.position,
-                laborType: 'Direct',
-                shift: opts.shift || header.value.shift,
-                billStRate: opts.billStRate ?? 0,
-                billOtRate: opts.billOtRate ?? 0,
-                billDtRate: opts.billDtRate ?? 0,
+                laborType: match?.laborType ?? 'Direct',
+                craftCode: match?.craftCode,
+                navCode: match?.navCode,
+                shift: rowShift,
+                billStRate: match?.stRate ?? opts.billStRate ?? 0,
+                billOtRate: match?.otRate ?? opts.billOtRate ?? 0,
+                billDtRate: match?.dtRate ?? opts.billDtRate ?? 0,
+                scheduleJson,
                 stHours: 0,
                 otHours: 0,
                 dtHours: 0,
                 subtotal: 0,
             });
+            recalcLaborRow(laborRows.value[laborRows.value.length - 1]);
         }
+        recalcSummary();
         markDirty();
     }
 
@@ -505,6 +631,7 @@ export const useEstimateStore = defineStore('estimate', () => {
     function addExpenseRow() {
         expenseRows.value.push({
             category: 'PerDiem',
+            type: 'Direct',
             description: '',
             rate: 0,
             unit: 'Day',
@@ -531,6 +658,8 @@ export const useEstimateStore = defineStore('estimate', () => {
         revisions,
         rateBookRates,
         rateBookName,
+        rateBookEquipmentRates,
+        rateBookExpenseItems,
         isDirty,
         isLoading,
         isSaving,
@@ -539,6 +668,7 @@ export const useEstimateStore = defineStore('estimate', () => {
         markDirty,
         loadRateBook,
         clearRateBook,
+        applyRateBookToRows,
         fetchEstimate,
         fetchNextNumber,
         saveEstimate,

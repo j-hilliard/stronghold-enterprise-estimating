@@ -138,6 +138,48 @@ test.describe('AI NLP variation robustness', () => {
         expect(recognizedPosition).toBeTruthy();
     });
 
+    test('[REQ-AI-001, REQ-RATE-002] AI-added labor uses the loaded rate book', async ({ page }) => {
+        await page.route('**/api/v1/rate-books/42', route =>
+            route.fulfill({
+                json: {
+                    rateBookId: 42,
+                    name: 'Shell Deer Park, TX 2024',
+                    client: 'Shell Oil Company',
+                    clientCode: 'SHELL',
+                    laborRates: [
+                        {
+                            rateBookLaborRateId: 4201,
+                            rateBookId: 42,
+                            position: 'Boilermaker Journeyman',
+                            laborType: 'Direct',
+                            craftCode: 'BM',
+                            navCode: 'BM001',
+                            stRate: 88,
+                            otRate: 132,
+                            dtRate: 176,
+                            sortOrder: 1,
+                        },
+                    ],
+                    equipmentRates: [],
+                    expenseItems: [],
+                },
+            })
+        );
+        await mockAiReply(page, 'Loaded Shell rates and added the boilermaker crew.', [
+            { action: 'load_rate_book', rate_book_id: 42, rate_book_name: 'Shell Deer Park, TX 2024' },
+            { action: 'add_labor_rows', rows: [{ position: 'Boilermaker Journeyman', shift: 'Day', qty: 1 }] },
+        ]);
+
+        await openChat(page);
+        await sendAndWait(page, 'load Shell Deer Park rates and add one boilermaker');
+        await page.locator('.ai-action-card').locator('button', { hasText: 'Apply' }).click();
+
+        await expect(page.locator('[data-testid="labor-position-0"]')).toHaveValue('Boilermaker Journeyman');
+        await expect(page.locator('[data-testid="labor-table"]')).toContainText('$88.00');
+        await expect(page.locator('[data-testid="labor-table"]')).toContainText('$132.00');
+        await expect(page.locator('[data-testid="labor-table"]')).toContainText('$176.00');
+    });
+
     test('[REQ-AI-004, REQ-QA-004] location format — "city, ST" parsed correctly', async ({ page }) => {
         await mockAiReply(page, 'New estimate for Valero in Port Arthur, TX.', [
             { action: 'fill_header', fields: { city: 'Port Arthur', state: 'TX' } },

@@ -37,7 +37,7 @@
                 <!-- API key warning -->
                 <div v-if="noApiKey" class="ai-warning">
                     <i class="pi pi-exclamation-triangle" />
-                    <span>Groq API key not configured. Set <code>Ai:GroqApiKey</code> in appsettings.json.</span>
+                    <span>AI not configured. Check appsettings.Local.json for Ai:Provider settings.</span>
                 </div>
 
                 <!-- Message thread -->
@@ -185,9 +185,13 @@
                                 <path d="M10 2l1.5 5.5L17 9l-5.5 1.5L10 16l-1.5-5.5L3 9l5.5-1.5Z" fill="white" opacity="0.95"/>
                             </svg>
                         </div>
-                        <div class="ai-bubble ai-bubble--assistant ai-typing">
-                            <span /><span /><span />
+                        <div class="ai-bubble ai-bubble--assistant ai-typing-wrap">
+                            <div class="ai-typing"><span /><span /><span /></div>
+                            <div class="ai-thinking-label">{{ loadingStatus }}</div>
                         </div>
+                        <button class="ai-stop-btn" title="Stop" @click="store.cancelRequest()">
+                            <i class="pi pi-stop-circle" />
+                        </button>
                     </div>
                 </div>
 
@@ -283,6 +287,30 @@ const threadEl = ref<HTMLElement>();
 const inputEl = ref<any>();
 const noApiKey = ref(false);
 const savingForTemplate = ref(false);
+
+// ── Loading status cycling ──────────────────────────────────────────────────
+const loadingElapsed = ref(0);
+let _loadingTimer: ReturnType<typeof setInterval> | null = null;
+
+watch(() => store.isLoading, (loading) => {
+    if (loading) {
+        loadingElapsed.value = 0;
+        _loadingTimer = setInterval(() => { loadingElapsed.value++; }, 1000);
+    } else {
+        if (_loadingTimer) { clearInterval(_loadingTimer); _loadingTimer = null; }
+        loadingElapsed.value = 0;
+    }
+});
+
+const loadingStatus = computed(() => {
+    const s = loadingElapsed.value;
+    if (s < 5)  return 'Thinking…';
+    if (s < 15) return 'Searching past jobs…';
+    if (s < 30) return 'Analyzing crew & equipment…';
+    if (s < 50) return 'Comparing estimates…';
+    if (s < 70) return 'Calculating gaps…';
+    return 'Almost there…';
+});
 
 const hints = computed(() => {
     const page = props.currentPage ?? '';
@@ -717,7 +745,11 @@ watch(() => store.isOpen, (open) => {
 }
 
 /* Typing */
-.ai-typing { display: flex; align-items: center; gap: 4px; padding: 10px 14px; }
+.ai-typing-wrap { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; }
+.ai-typing { display: flex; align-items: center; gap: 4px; }
+.ai-thinking-label { font-size: 0.68rem; color: var(--text-color-secondary); font-style: italic; }
+.ai-stop-btn { background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 4px 8px; font-size: 16px; margin-left: 4px; border-radius: 4px; transition: color 0.15s; }
+.ai-stop-btn:hover { color: #f87171; }
 .ai-typing span {
     width: 5px; height: 5px; border-radius: 50%;
     background: var(--text-color-secondary);

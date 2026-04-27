@@ -32,7 +32,7 @@ public class Estimate
 
     // OT/DT rules
     public string OtMethod { get; set; } = "daily8_weekly40"; // daily8_weekly40, daily8, weekly40, california
-    public bool DtWeekends { get; set; } = false;
+    public string DtWeekends { get; set; } = "none"; // none, sun_only, sat_sun
 
     // Status & meta
     public string Status { get; set; } = "Draft"; // Draft, Pending, Awarded, Lost, Canceled

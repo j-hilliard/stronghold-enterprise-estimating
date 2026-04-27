@@ -18,11 +18,12 @@ public class ToolExecutorService
     {
         return toolName switch
         {
-            "get_pipeline_summary"  => await GetPipelineSummaryAsync(companyCode, ct),
-            "get_active_jobs"       => await GetActiveJobsAsync(companyCode, ct),
-            "search_estimates"      => await SearchEstimatesAsync(arguments, companyCode, ct),
-            "get_win_loss_stats"    => await GetWinLossStatsAsync(arguments, companyCode, ct),
-            "get_labor_utilization" => await GetLaborUtilizationAsync(companyCode, ct),
+            "get_pipeline_summary"   => await GetPipelineSummaryAsync(companyCode, ct),
+            "get_active_jobs"        => await GetActiveJobsAsync(companyCode, ct),
+            "search_estimates"       => await SearchEstimatesAsync(arguments, companyCode, ct),
+            "get_win_loss_stats"     => await GetWinLossStatsAsync(arguments, companyCode, ct),
+            "get_labor_utilization"  => await GetLaborUtilizationAsync(companyCode, ct),
+            "get_estimate_details"   => await GetEstimateDetailsAsync(arguments, companyCode, ct),
             _ => JsonSerializer.Serialize(new { error = $"Unknown tool: {toolName}" })
         };
     }
@@ -135,18 +136,39 @@ public class ToolExecutorService
         {
             q = q.Where(e => e.StartDate <= beforeDate);
         }
+        if (args.TryGetProperty("city", out var cityEl) && cityEl.ValueKind == JsonValueKind.String)
+        {
+            var city = cityEl.GetString()!;
+            if (!string.IsNullOrWhiteSpace(city))
+                q = q.Where(e => e.City != null && e.City.ToLower().Contains(city.ToLower()));
+        }
+        if (args.TryGetProperty("state", out var stateEl) && stateEl.ValueKind == JsonValueKind.String)
+        {
+            var state = stateEl.GetString()!;
+            if (!string.IsNullOrWhiteSpace(state))
+                q = q.Where(e => e.State != null && e.State.ToLower() == state.ToLower());
+        }
+        if (args.TryGetProperty("year", out var yearEl) && yearEl.ValueKind == JsonValueKind.Number
+            && yearEl.TryGetInt32(out var year))
+        {
+            q = q.Where(e => e.StartDate.HasValue && e.StartDate.Value.Year == year);
+        }
 
-        var estimates = await q.OrderByDescending(e => e.StartDate).Take(20).ToListAsync(ct);
+        var estimates = await q.OrderByDescending(e => e.StartDate).Take(50).ToListAsync(ct);
+        var totalRevenue = estimates.Sum(e => e.Summary?.GrandTotal ?? 0);
 
         return JsonSerializer.Serialize(new
         {
             count = estimates.Count,
-            estimates = estimates.Select(e => new
+            totalRevenue,
+            estimates = estimates.Take(20).Select(e => new
             {
                 estimateId = e.EstimateId,
                 number = e.EstimateNumber,
                 name = e.Name,
                 client = e.Client,
+                city = e.City,
+                state = e.State,
                 status = e.Status,
                 startDate = e.StartDate?.ToString("yyyy-MM-dd"),
                 endDate = e.EndDate?.ToString("yyyy-MM-dd"),
@@ -184,6 +206,59 @@ public class ToolExecutorService
             total,
             winRate = total > 0 ? Math.Round((double)awarded / total * 100, 1) : 0,
             pending = estimates.Count(e => e.Status is "Pending" or "Submitted")
+        });
+    }
+
+    private async Task<string> GetEstimateDetailsAsync(JsonElement args, string companyCode, CancellationToken ct)
+    {
+        if (!args.TryGetProperty("estimate_id", out var idEl)
+            || idEl.ValueKind != JsonValueKind.Number
+            || !idEl.TryGetInt32(out var id))
+            return JsonSerializer.Serialize(new { error = "estimate_id is required and must be an integer" });
+
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        var est = await db.Estimates
+            .Include(e => e.LaborRows.OrderBy(r => r.SortOrder))
+            .Include(e => e.EquipmentRows.OrderBy(r => r.SortOrder))
+            .Include(e => e.Summary)
+            .FirstOrDefaultAsync(e => e.EstimateId == id && e.CompanyCode == companyCode, ct);
+
+        if (est == null) return JsonSerializer.Serialize(new { error = "Estimate not found" });
+
+        static int PeakQty(string? json)
+        {
+            if (string.IsNullOrEmpty(json)) return 0;
+            try
+            {
+                var doc = JsonDocument.Parse(json);
+                return doc.RootElement.EnumerateObject()
+                    .Select(p => p.Value.TryGetInt32(out var v) ? v : 0)
+                    .DefaultIfEmpty(0).Max();
+            }
+            catch { return 0; }
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            estimateId = est.EstimateId,
+            name = est.Name,
+            client = est.Client,
+            city = est.City,
+            state = est.State,
+            days = est.Days,
+            status = est.Status,
+            grandTotal = est.Summary?.GrandTotal ?? 0,
+            laborRows = est.LaborRows.Select(r => new
+            {
+                r.Position, r.LaborType, r.Shift,
+                r.BillStRate, r.BillOtRate, r.StHours, r.OtHours, r.Subtotal,
+                peakQty = PeakQty(r.ScheduleJson),
+                totalQtyDays = PeakQty(r.ScheduleJson) * est.Days,
+            }),
+            equipmentRows = est.EquipmentRows.Select(r => new
+            {
+                r.Name, r.RateType, r.Rate, r.Qty, r.Days, r.Subtotal
+            }),
         });
     }
 
@@ -247,7 +322,7 @@ public class ToolExecutorService
             function = new
             {
                 name = "search_estimates",
-                description = "Search and filter estimates by status, client, or date range. Returns up to 20 results with totals.",
+                description = "Search and filter estimates by status, client, city, state, year, or date range. Returns up to 20 results with totals.",
                 parameters = new
                 {
                     type = "object",
@@ -255,6 +330,9 @@ public class ToolExecutorService
                     {
                         status = new { type = "string", description = "Filter by status: Draft, Pending, Submitted, Awarded, Lost" },
                         client = new { type = "string", description = "Filter by client name (substring match)" },
+                        city = new { type = "string", description = "Filter by city name" },
+                        state = new { type = "string", description = "Filter by 2-letter state code, e.g. TX" },
+                        year = new { type = "integer", description = "Filter by start date year, e.g. 2025" },
                         startAfter = new { type = "string", description = "Filter jobs starting after this date (YYYY-MM-DD)" },
                         startBefore = new { type = "string", description = "Filter jobs starting before this date (YYYY-MM-DD)" }
                     },
@@ -289,6 +367,6 @@ public class ToolExecutorService
                 description = "Returns today's headcount by position across all active jobs.",
                 parameters = new { type = "object", properties = new { }, required = Array.Empty<string>() }
             }
-        }
+        },
     };
 }

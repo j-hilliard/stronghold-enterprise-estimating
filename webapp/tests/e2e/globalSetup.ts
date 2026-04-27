@@ -38,18 +38,14 @@ export default async function globalSetup() {
 
         // Seed standard dev data (estimates, rate books, staffing plans)
         // 409 = already seeded — treated as OK.
-        const seedResp = await ctx.post(`${API_BASE_URL}/api/v1/dev/seed`, { headers });
+        const seedResp = await ctx.post(`${API_BASE_URL}/api/v1.0/dev/seed`, { headers });
         if (!seedResp.ok() && seedResp.status() !== 409) {
             const body = await seedResp.text();
             throw new Error(`dev/seed failed (${seedResp.status()}): ${body}`);
         }
 
-        // Seed cost book with standard burden rates
-        const cbResp = await ctx.post(`${API_BASE_URL}/api/v1/cost-books/reset-standard`, { headers });
-        if (!cbResp.ok()) {
-            const body = await cbResp.text();
-            throw new Error(`cost-book reset-standard failed (${cbResp.status()}): ${body}`);
-        }
+        // NOTE: do NOT call cost-books/reset-standard here. Live setup must not mutate an
+        // existing demo cost book; dev/seed already creates the standard cost books when absent.
 
         console.log('globalSetup: dev seed complete');
     } catch (err) {

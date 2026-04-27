@@ -273,6 +273,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'update:visible', v: boolean): void;
     (e: 'restored'): void;
+    (e: 'saveAndCreate', description: string): void;
 }>();
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -359,20 +360,12 @@ function cancelCreate() {
 
 async function confirmCreate() {
     if (!props.estimateId) return;
+    // Emit to parent — parent saves the estimate (capturing unsaved changes) then calls loadRevisions()
+    const desc = createDescription.value;
+    creating.value = false;
+    createDescription.value = '';
     saving.value = true;
-    try {
-        await apiStore.api.post(`/api/v1/estimates/${props.estimateId}/revisions`, {
-            description: createDescription.value || null,
-        });
-        creating.value = false;
-        createDescription.value = '';
-        await loadRevisions();
-        toast.add({ severity: 'success', summary: 'Revision Created', detail: `Rev ${revisions.value.length} snapshot saved`, life: 3000 });
-    } catch (err: any) {
-        toast.add({ severity: 'error', summary: 'Error', detail: err?.response?.data?.message ?? 'Failed to create revision', life: 4000 });
-    } finally {
-        saving.value = false;
-    }
+    emit('saveAndCreate', desc);
 }
 
 // ── View ─────────────────────────────────────────────────────────────────────
@@ -439,6 +432,9 @@ function toggleCompareSelect(id: number) {
         compareSelected.value.push(id);
     }
 }
+
+// Expose so parent can refresh list after save + notify saving complete
+defineExpose({ loadRevisions, clearSaving: () => { saving.value = false; } });
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 

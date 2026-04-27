@@ -1,7 +1,7 @@
 # Stronghold Enterprise Estimating — Local Dev Database
 #
-# COMPLETELY SEPARATE from the safety-app database (which runs on port 14330).
-# This container runs on port 14331 → database: StrongholdEstimating
+# Alternative to SQL Express for local development.
+# Runs SQL Server 2022 on port 14331 → database: StrongholdEstimating
 #
 # Usage:
 #   Start:  docker compose up -d

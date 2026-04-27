@@ -6,7 +6,7 @@ import { DEV_BYPASS, getToken, logout, tryAutoLogin } from '@/services/authServi
 import { useAppStore } from '@/stores/appStore.ts';
 
 export const useApiStore = defineStore('api', () => {
-    const api = ref(axios.create({ baseURL: import.meta.env.VITE_APP_API_BASE_URL }));
+    const api = ref(axios.create({ baseURL: import.meta.env.VITE_APP_API_BASE_URL, timeout: 30000 }));
 
     const appStore = useAppStore();
 
@@ -83,7 +83,7 @@ export const useApiStore = defineStore('api', () => {
                     await router.push(`${baseSlug}/forbidden`);
                 }
 
-                if (status >= 500 && status < 600) {
+                if (status >= 500 && status < 600 && !error.config?.url?.includes('/ai/')) {
                     await router.push(`${baseSlug}/internal-server-error`);
                 }
 

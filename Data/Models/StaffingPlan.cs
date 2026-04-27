@@ -23,7 +23,7 @@ public class StaffingPlan
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string OtMethod { get; set; } = "daily8_weekly40";
-    public bool DtWeekends { get; set; } = false;
+    public string DtWeekends { get; set; } = "none"; // none, sun_only, sat_sun
 
     public decimal RoughLaborTotal { get; set; }
 

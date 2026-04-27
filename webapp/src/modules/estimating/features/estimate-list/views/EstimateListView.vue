@@ -1,28 +1,6 @@
 <template>
     <div class="estimate-list-view">
-        <BasePageHeader icon="pi pi-calculator" title="Estimates" subtitle="Manage all estimates and bids">
-            <template v-if="devMode">
-                <Button
-                    label="Reset"
-                    icon="pi pi-trash"
-                    severity="danger"
-                    outlined
-                    size="small"
-                    :loading="resetting"
-                    @click="resetDevData"
-                    v-tooltip="'Delete ALL CSL data (dev only)'"
-                />
-                <Button
-                    label="Seed Dev Data"
-                    icon="pi pi-database"
-                    severity="secondary"
-                    outlined
-                    size="small"
-                    :loading="seeding"
-                    @click="seedDevData"
-                    v-tooltip="'Seed rate books, cost book, estimates (dev only)'"
-                />
-            </template>
+        <BasePageHeader icon="pi pi-calculator" title="Quote Log" subtitle="Manage all estimates and bids">
             <BaseButtonCreate label="New Estimate" @click="router.push('/estimating/estimates/new')" />
         </BasePageHeader>
 
@@ -59,6 +37,16 @@
                     @change="onFilterChange"
                 />
                 <InputText v-model="clientFilter" placeholder="Client..." class="w-full md:w-44" @input="onFilterChange" />
+                <Dropdown
+                    v-model="yearFilter"
+                    :options="yearOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="All Years"
+                    showClear
+                    class="w-full md:w-32"
+                    @change="onFilterChange"
+                />
                 <Button
                     v-if="selectedItems.length > 0"
                     label="Delete Selected"
@@ -101,18 +89,46 @@
                     <span class="font-semibold">{{ fmtCurrency(data.grandTotal) }}</span>
                 </template>
             </Column>
-            <Column header="Actions" style="min-width:140px">
+            <Column header="Actions" style="min-width:120px" bodyClass="row-actions-cell">
                 <template #body="{ data }">
-                    <div class="flex gap-1">
-                        <Button icon="pi pi-pencil" text rounded size="small" @click="editEstimate(data.estimateId)" v-tooltip="'Edit'" />
-                        <Button icon="pi pi-copy" text rounded size="small" severity="secondary" @click="cloneAsScenario(data)" v-tooltip="'Clone as Scenario'" :loading="cloningId === data.estimateId" />
-                        <Button icon="pi pi-trash" text rounded size="small" severity="danger" @click="confirmDelete(data)" v-tooltip="'Delete'" />
+                    <div class="row-actions flex gap-1 align-items-center">
+                        <Button icon="pi pi-pencil" text rounded size="small" v-tooltip="'Edit'" @click.stop="editEstimate(data.estimateId)" />
+                        <Button icon="pi pi-trash" text rounded size="small" severity="danger" v-tooltip="'Delete'" @click.stop="confirmDelete(data)" />
+                        <Button
+                            icon="pi pi-ellipsis-v"
+                            text rounded size="small"
+                            severity="secondary"
+                            v-tooltip="'More actions'"
+                            @click.stop="openRowMenu($event, data)"
+                        />
                     </div>
                 </template>
             </Column>
         </BaseDataTable>
 
-        <ConfirmDialog />
+        <Menu ref="rowMenu" :model="rowMenuItems" popup appendTo="body" />
+
+        <!-- Lost Reason Dialog -->
+        <Dialog v-model:visible="lostDialogVisible" header="Mark as Lost" modal style="width:420px" :closable="false">
+            <div class="flex flex-col gap-3 pt-2">
+                <p class="text-slate-400 text-sm">Select a reason before confirming.</p>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-bold uppercase text-slate-400">Reason *</label>
+                    <Dropdown v-model="lostReasonDraft" :options="lostReasonOptions" placeholder="Select reason..." class="w-full" />
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-bold uppercase text-slate-400">Notes (optional)</label>
+                    <Textarea v-model="lostNotesDraft" rows="3" placeholder="Additional context..." class="w-full" autoResize />
+                </div>
+            </div>
+            <template #footer>
+                <Button label="Cancel" text @click="lostDialogVisible = false" />
+                <Button label="Confirm Lost" icon="pi pi-check" severity="danger" :disabled="!lostReasonDraft" @click="confirmLostFromList" />
+            </template>
+        </Dialog>
+
+        <ConfirmDialog :closable="false" :dismissableMask="false" />
+        <Toast />
     </div>
 </template>
 
@@ -121,6 +137,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
+import ConfirmDialog from 'primevue/confirmdialog';
 import { useApiStore } from '@/stores/apiStore';
 import BasePageHeader from '@/components/layout/BasePageHeader.vue';
 import BaseButtonCreate from '@/components/buttons/BaseButtonCreate.vue';
@@ -188,11 +205,28 @@ const selectedItems = ref<EstimateListItem[]>([]);
 const search = ref('');
 const statusFilter = ref('');
 const clientFilter = ref('');
+const yearFilter = ref<number | ''>('');
+
+const yearOptions = [
+    { label: 'All Years', value: '' as number | '' },
+    { label: '2025', value: 2025 },
+    { label: '2026', value: 2026 },
+    { label: '2027', value: 2027 },
+];
 const cloningId = ref<number | null>(null);
+const revisionId = ref<number | null>(null);
+const rowMenu = ref();
+const rowMenuItems = ref<any[]>([]);
+const lostDialogVisible = ref(false);
+const lostTargetId = ref<number | null>(null);
+const lostReasonDraft = ref('');
+const lostNotesDraft = ref('');
+const lostReasonOptions = ['Pricing', 'Scope', 'Competitor', 'No Decision', 'Other'];
 let debounceTimer: ReturnType<typeof setTimeout>;
 
 const statusOptions = [
     { label: 'Draft', value: 'Draft' },
+    { label: 'Submitted for Approval', value: 'Submitted for Approval' },
     { label: 'Pending', value: 'Pending' },
     { label: 'Awarded', value: 'Awarded' },
     { label: 'Lost', value: 'Lost' },
@@ -209,6 +243,7 @@ async function loadEstimates() {
         if (search.value) params.set('search', search.value);
         if (statusFilter.value) params.set('status', statusFilter.value);
         if (clientFilter.value) params.set('client', clientFilter.value);
+        if (yearFilter.value) params.set('year', String(yearFilter.value));
 
         const { data } = await apiStore.api.get(`/api/v1/estimates?${params}`);
         items.value = data.items;
@@ -242,6 +277,55 @@ function editEstimate(id: number) {
     router.push(`/estimating/estimates/${id}`);
 }
 
+function openRowMenu(event: Event, row: EstimateListItem) {
+    rowMenuItems.value = buildMenuItems(row);
+    rowMenu.value.toggle(event);
+}
+
+function buildMenuItems(row: EstimateListItem) {
+    const items: any[] = [];
+    items.push({ label: 'Open', icon: 'pi pi-folder-open', command: () => editEstimate(row.estimateId) });
+    if (row.status === 'Draft') {
+        items.push({ separator: true });
+        items.push({
+            label: 'Submit for Approval',
+            icon: 'pi pi-send',
+            command: () => confirmSubmitForApproval(row),
+        });
+    }
+    if (!['Awarded', 'Lost', 'Canceled'].includes(row.status)) {
+        items.push({ separator: true });
+        items.push({ label: 'Mark as Won', icon: 'pi pi-trophy', command: () => confirmAward(row) });
+        items.push({ label: 'Mark as Lost', icon: 'pi pi-times-circle', command: () => openLostDialog(row) });
+    } else if (row.status === 'Awarded') {
+        items.push({ separator: true });
+        items.push({ label: 'Mark as Lost', icon: 'pi pi-times-circle', command: () => openLostDialog(row) });
+    }
+    if (row.status === 'Awarded' || row.status === 'Submitted for Approval') {
+        items.push({ label: 'Create Revision', icon: 'pi pi-history', command: () => createRevision(row) });
+    }
+    return items;
+}
+
+function confirmSubmitForApproval(item: EstimateListItem) {
+    confirm.require({
+        message: `Submit ${item.estimateNumber} for approval?`,
+        header: 'Submit for Approval',
+        icon: 'pi pi-send',
+        acceptClass: 'p-button-success',
+        rejectClass: 'p-button-secondary p-button-outlined',
+        accept: async () => {
+            try {
+                await apiStore.api.patch(`/api/v1/estimates/${item.estimateId}/status`, { status: 'Submitted for Approval' });
+                toast.add({ severity: 'success', summary: 'Submitted', detail: `${item.estimateNumber} submitted for approval`, life: 3000 });
+                loadEstimates();
+            } catch {
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Could not update status', life: 3000 });
+            }
+        },
+    });
+}
+
 async function cloneAsScenario(item: EstimateListItem) {
     cloningId.value = item.estimateId;
     try {
@@ -252,6 +336,61 @@ async function cloneAsScenario(item: EstimateListItem) {
         toast.add({ severity: 'error', summary: 'Clone Failed', detail: 'Could not clone estimate', life: 4000 });
     } finally {
         cloningId.value = null;
+    }
+}
+
+function confirmAward(item: EstimateListItem) {
+    confirm.require({
+        message: `Mark ${item.estimateNumber} as Awarded?`,
+        header: 'Mark Awarded',
+        icon: 'pi pi-trophy',
+        acceptClass: 'p-button-success',
+        rejectClass: 'p-button-secondary p-button-outlined',
+        accept: async () => {
+            try {
+                await apiStore.api.patch(`/api/v1/estimates/${item.estimateId}/status`, { status: 'Awarded' });
+                toast.add({ severity: 'success', summary: 'Awarded', detail: `${item.estimateNumber} marked as Awarded`, life: 3000 });
+                loadEstimates();
+            } catch {
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Could not update status', life: 3000 });
+            }
+        },
+    });
+}
+
+function openLostDialog(item: EstimateListItem) {
+    lostTargetId.value = item.estimateId;
+    lostReasonDraft.value = '';
+    lostNotesDraft.value = '';
+    lostDialogVisible.value = true;
+}
+
+async function confirmLostFromList() {
+    if (!lostTargetId.value || !lostReasonDraft.value) return;
+    try {
+        await apiStore.api.patch(`/api/v1/estimates/${lostTargetId.value}/status`, {
+            status: 'Lost',
+            lostReason: lostReasonDraft.value,
+            lostNotes: lostNotesDraft.value || undefined,
+        });
+        toast.add({ severity: 'warn', summary: 'Marked Lost', detail: `Reason: ${lostReasonDraft.value}`, life: 3000 });
+        lostDialogVisible.value = false;
+        loadEstimates();
+    } catch {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Could not update status', life: 3000 });
+    }
+}
+
+async function createRevision(item: EstimateListItem) {
+    revisionId.value = item.estimateId;
+    try {
+        const { data } = await apiStore.api.post(`/api/v1/estimates/${item.estimateId}/clone`);
+        toast.add({ severity: 'success', summary: 'Revision Created', detail: `New estimate: ${data.estimateNumber}`, life: 4000 });
+        router.push(`/estimating/estimates/${data.estimateId}`);
+    } catch {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Could not create revision', life: 3000 });
+    } finally {
+        revisionId.value = null;
     }
 }
 
@@ -300,6 +439,7 @@ function confirmBulkDelete() {
 function statusSeverity(status: string): string {
     const map: Record<string, string> = {
         Draft: '',
+        'Submitted for Approval': 'info',
         Pending: 'warning',
         Awarded: 'success',
         Lost: 'danger',
@@ -328,5 +468,12 @@ onMounted(loadEstimates);
     font-size: 0.6rem;
     padding: 1px 5px;
     opacity: 0.75;
+}
+.row-actions {
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+:deep(.p-datatable-tbody > tr:hover) .row-actions {
+    opacity: 1;
 }
 </style>

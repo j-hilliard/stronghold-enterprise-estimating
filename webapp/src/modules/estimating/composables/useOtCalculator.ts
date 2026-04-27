@@ -37,14 +37,16 @@ interface Slot {
 function calcDayHours(
     hrs: number,
     otMethod: string,
-    dtWeekends: boolean,
+    dtWeekends: string,
     dow: number,          // 0 = Sun, 6 = Sat
     weeklyHours: number,  // hours accumulated this week BEFORE this day
 ): OtResult {
-    // Sundays always DT
-    if (dow === 0) return { stHours: 0, otHours: 0, dtHours: hrs };
-    // Saturdays DT when dtWeekends
-    if (dow === 6 && dtWeekends) return { stHours: 0, otHours: 0, dtHours: hrs };
+    // Sundays DT only when setting includes Sunday
+    if (dow === 0 && (dtWeekends === 'sun_only' || dtWeekends === 'sat_sun'))
+        return { stHours: 0, otHours: 0, dtHours: hrs };
+    // Saturdays DT only when sat_sun
+    if (dow === 6 && dtWeekends === 'sat_sun')
+        return { stHours: 0, otHours: 0, dtHours: hrs };
 
     switch (otMethod) {
         case 'daily8': {
@@ -82,7 +84,7 @@ export function calcOtHours(
     scheduleJson: string | null | undefined,
     hoursPerShift: number,
     otMethod: string,
-    dtWeekends: boolean,
+    dtWeekends: string,
 ): OtResult {
     if (!scheduleJson) return { stHours: 0, otHours: 0, dtHours: 0 };
 

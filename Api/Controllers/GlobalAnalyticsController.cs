@@ -88,13 +88,16 @@ public class GlobalAnalyticsController : ControllerBase
         var awarded   = estimates.Where(e => e.Status == "Awarded").ToList();
         var pendingEs = estimates.Where(e => e.Status is "Pending" or "Submitted").ToList();
 
-        var totalForecast        = estimates.Sum(e => e.GrandTotal);
+        var totalForecast        = estimates
+            .Where(e => e.Status is not ("Lost" or "Canceled" or "Draft"))
+            .Sum(e => e.GrandTotal);
         var confidenceWeighted   = estimates.Sum(e => e.GrandTotal * e.ConfidencePct / 100);
         var awardedTotal         = awarded.Sum(e => e.GrandTotal);
         var pendingTotal         = pendingEs.Sum(e => e.GrandTotal);
 
         var today      = DateTime.UtcNow.Date;
         var jobsInRange = estimates.Count(e =>
+            e.Status == "Awarded" &&
             e.StartDate.HasValue && e.EndDate.HasValue &&
             e.StartDate.Value.Date <= today && e.EndDate.Value.Date >= today);
 
@@ -103,10 +106,10 @@ public class GlobalAnalyticsController : ControllerBase
             .Select(i =>
             {
                 var month = new DateTime(today.Year, today.Month, 1).AddMonths(i);
-                var monthEnd = month.AddMonths(1).AddDays(-1);
                 var inMonth = estimates.Where(e =>
-                    e.StartDate.HasValue && e.EndDate.HasValue &&
-                    e.StartDate.Value.Date <= monthEnd && e.EndDate.Value.Date >= month);
+                    e.StartDate.HasValue &&
+                    e.StartDate.Value.Year == month.Year &&
+                    e.StartDate.Value.Month == month.Month);
 
                 return new
                 {

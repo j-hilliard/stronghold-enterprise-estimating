@@ -6,7 +6,8 @@ public class ExpenseRow
     public int EstimateId { get; set; }
     public Estimate Estimate { get; set; } = null!;
 
-    public string Category { get; set; } = string.Empty; // PerDiem, Travel, Lodging, Other
+    public string Category { get; set; } = string.Empty; // PerDiem, Travel, Lodging
+    public string Type { get; set; } = "Direct";          // Direct | Indirect
     public string Description { get; set; } = string.Empty;
     public decimal Rate { get; set; }
     public string Unit { get; set; } = "Day"; // Day, Week, Month, Each

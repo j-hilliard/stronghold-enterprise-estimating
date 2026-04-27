@@ -345,7 +345,7 @@ public class EstimateSnapshotDto
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string OtMethod { get; set; } = "daily8_weekly40";
-    public bool DtWeekends { get; set; }
+    public string DtWeekends { get; set; } = "none";
     public string Status { get; set; } = "Draft";
     public decimal ConfidencePct { get; set; }
     public string? LostReason { get; set; }

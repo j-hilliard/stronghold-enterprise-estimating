@@ -41,7 +41,7 @@ test.describe('Live — staffing plans', () => {
         const planId = Number(idMatch![1]);
 
         // DB reconciliation
-        const detail = await apiGet(request, `/api/v1/staffing-plans/${planId}`);
+        const detail = await apiGet(request, `/api/v1.0/staffing-plans/${planId}`);
         expect(detail.name).toBe(planName);
         expect(detail.client).toBe('Shell');
         expect(detail.city).toBe('Deer Park');
@@ -52,7 +52,7 @@ test.describe('Live — staffing plans', () => {
         const planName = `${TAG} Convert ${Date.now()}`;
 
         // Create staffing plan via API
-        const created = await apiPost(request, '/api/v1/staffing-plans', {
+        const created = await apiPost(request, '/api/v1.0/staffing-plans', {
             name: planName,
             client: 'BP',
             clientCode: 'BPH',
@@ -90,17 +90,17 @@ test.describe('Live — staffing plans', () => {
 
         // Wait for conversion result
         await expect(
-            page.locator('[data-testid="sp-converted-message"], .p-toast', { hasText: /converted/i }),
+            page.locator('[data-testid="sp-converted-message"], .p-toast', { hasText: /converted/i }).first(),
         ).toBeVisible({ timeout: 15_000 });
 
         // DB reconciliation — staffing plan should now have convertedEstimateId
-        const plan = await apiGet(request, `/api/v1/staffing-plans/${planId}`);
+        const plan = await apiGet(request, `/api/v1.0/staffing-plans/${planId}`);
         expect(plan.convertedEstimateId).toBeTruthy();
         expect(plan.status).toBe('Converted');
 
         // REQ-SP-005: converted estimate stores staffing plan reference
         const estimateId = plan.convertedEstimateId;
-        const estimate = await apiGet(request, `/api/v1/estimates/${estimateId}`);
+        const estimate = await apiGet(request, `/api/v1.0/estimates/${estimateId}`);
         expect(estimate).toBeTruthy();
     });
 
@@ -108,7 +108,7 @@ test.describe('Live — staffing plans', () => {
     test('[REQ-SP-006] converted staffing plan is deduped in manpower list view', async ({ page, request }) => {
         // Seed a converted plan
         const planName = `${TAG} Dedup ${Date.now()}`;
-        const created = await apiPost(request, '/api/v1/staffing-plans', {
+        const created = await apiPost(request, '/api/v1.0/staffing-plans', {
             name: planName,
             client: 'Valero',
             clientCode: 'VLO',

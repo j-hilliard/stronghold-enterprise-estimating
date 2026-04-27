@@ -50,6 +50,17 @@
                 data-testid="sp-branch"
                 @change="onFilterChange"
             />
+            <Dropdown
+                v-model="yearFilter"
+                :options="yearOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="All Years"
+                class="w-10rem"
+                showClear
+                data-testid="sp-year"
+                @change="onFilterChange"
+            />
             <InputText
                 v-model="quickFilter"
                 placeholder="Quick filter (client/location/plan)"
@@ -70,6 +81,8 @@
                 class="sp-card"
                 :class="cardClass(item)"
                 :data-testid="`sp-card-${item.staffingPlanId}`"
+                :style="item.convertedEstimateId ? 'cursor:pointer' : ''"
+                @click.self="item.convertedEstimateId ? router.push(`/estimating/estimates/${item.convertedEstimateId}`) : null"
             >
                 <div class="card-header">
                     <span class="sp-number">{{ item.staffingPlanNumber }}</span>
@@ -107,7 +120,27 @@
                     />
                 </div>
 
-                <div class="card-actions">
+                <!-- Converted plans: hover-only Open Estimate button -->
+                <div v-if="item.convertedEstimateId" class="card-actions">
+                    <Button
+                        label="Open Estimate"
+                        icon="pi pi-arrow-right"
+                        size="small"
+                        severity="success"
+                        :data-testid="`sp-converted-${item.staffingPlanId}`"
+                        @click="router.push(`/estimating/estimates/${item.convertedEstimateId}`)"
+                    />
+                    <Button
+                        label="View Plan"
+                        size="small"
+                        severity="secondary"
+                        outlined
+                        :data-testid="`sp-open-${item.staffingPlanId}`"
+                        @click="router.push(`/estimating/staffing-plans/${item.staffingPlanId}`)"
+                    />
+                </div>
+                <!-- Non-converted plans: hover-only actions -->
+                <div v-else class="card-actions">
                     <Button
                         label="Open"
                         size="small"
@@ -115,14 +148,6 @@
                         @click="router.push(`/estimating/staffing-plans/${item.staffingPlanId}`)"
                     />
                     <Button
-                        label="Duplicate"
-                        size="small"
-                        outlined
-                        :data-testid="`sp-duplicate-${item.staffingPlanId}`"
-                        @click="duplicatePlan(item)"
-                    />
-                    <Button
-                        v-if="!item.convertedEstimateId"
                         label="Delete"
                         size="small"
                         outlined
@@ -131,19 +156,11 @@
                         @click="confirmDelete(item)"
                     />
                     <Button
-                        v-if="!item.convertedEstimateId"
                         label="Convert"
                         size="small"
                         severity="success"
                         :data-testid="`sp-convert-${item.staffingPlanId}`"
                         @click="convertPlan(item)"
-                    />
-                    <Button
-                        v-else
-                        label="Converted"
-                        size="small"
-                        disabled
-                        :data-testid="`sp-converted-${item.staffingPlanId}`"
                     />
                 </div>
             </div>
@@ -214,6 +231,14 @@ const search = ref('');
 const quickFilter = ref('');
 const statusFilter = ref('');
 const branchFilter = ref('');
+const yearFilter = ref<number | ''>('');
+
+const yearOptions = [
+    { label: 'All Years', value: '' as number | '' },
+    { label: '2025', value: 2025 },
+    { label: '2026', value: 2026 },
+    { label: '2027', value: 2027 },
+];
 let debounceTimer: ReturnType<typeof setTimeout>;
 
 const deleteConfirmVisible = ref(false);
@@ -222,6 +247,7 @@ const deleteTarget = ref<StaffingListItem | null>(null);
 const statusOptions = [
     { label: 'All Status', value: '' },
     { label: 'Draft', value: 'Draft' },
+    { label: 'Submitted for Approval', value: 'Submitted for Approval' },
     { label: 'Active', value: 'Active' },
     { label: 'Approved', value: 'Approved' },
     { label: 'Converted', value: 'Converted' },
@@ -249,6 +275,7 @@ async function load() {
         if (search.value) params.set('search', search.value);
         if (statusFilter.value) params.set('status', statusFilter.value);
         if (branchFilter.value) params.set('branch', branchFilter.value);
+        if (yearFilter.value) params.set('year', String(yearFilter.value));
 
         const { data } = await apiStore.api.get(`/api/v1/staffing-plans?${params}`);
         items.value = data.items ?? [];
@@ -373,6 +400,7 @@ function statusSeverity(status: string): string {
         Converted: 'success',
         Approved: 'info',
         Active: 'info',
+        'Submitted for Approval': 'info',
         Draft: 'secondary',
         Archived: 'warning',
     };
@@ -498,6 +526,11 @@ onMounted(load);
     margin-top: auto;
     padding-top: 8px;
     border-top: 1px solid var(--surface-border);
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.sp-card:hover .card-actions {
+    opacity: 1;
 }
 
 .pagination-bar {

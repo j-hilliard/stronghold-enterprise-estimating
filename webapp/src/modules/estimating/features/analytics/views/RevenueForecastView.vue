@@ -3,36 +3,43 @@
         <!-- Top controls bar -->
         <div class="fd-topbar">
             <div class="fd-topbar-left">
-                <div class="fd-view-tabs">
-                    <button
-                        v-for="tab in viewTabs"
-                        :key="tab.value"
-                        class="fd-view-tab"
-                        :class="{ active: activeView === tab.value }"
-                        @click="activeView = tab.value"
-                    >{{ tab.label }}</button>
+                <div class="fd-filter-item">
+                    <label class="fd-filter-label">PERIOD</label>
+                    <Dropdown
+                        v-model="timePeriod"
+                        :options="timePeriodTabs"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="fd-period-dropdown"
+                        data-testid="fd-period"
+                    />
                 </div>
-                <Dropdown
-                    v-model="selectedBranch"
-                    :options="branchOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    class="fd-branch-dropdown"
-                    data-testid="fd-branch"
-                />
+                <div class="fd-filter-item">
+                    <label class="fd-filter-label">YEAR</label>
+                    <Dropdown
+                        v-model="selectedYear"
+                        :options="yearOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="fd-year-dropdown"
+                        data-testid="fd-year"
+                    />
+                </div>
+                <template v-if="timePeriod === 'Custom'">
+                    <div class="fd-filter-item">
+                        <label class="fd-filter-label">FROM</label>
+                        <Calendar v-model="customFrom" dateFormat="yy-mm-dd" class="fd-date-picker" showIcon />
+                    </div>
+                    <div class="fd-filter-item">
+                        <label class="fd-filter-label">TO</label>
+                        <Calendar v-model="customTo" dateFormat="yy-mm-dd" class="fd-date-picker" showIcon />
+                    </div>
+                </template>
             </div>
             <div class="fd-topbar-right">
-                <Button label="Export PDF" icon="pi pi-file-pdf" text size="small" class="fd-topbar-btn" v-tooltip.bottom="'Print to PDF via browser'" @click="() => window.print()" />
+                <Button label="Export PDF" icon="pi pi-file-pdf" text size="small" class="fd-topbar-btn" v-tooltip.bottom="'Print to PDF via browser'" @click="printPage" />
                 <Button label="Export CSV" icon="pi pi-download" text size="small" class="fd-topbar-btn" data-testid="fd-export" @click="exportCsv" />
                 <Button icon="pi pi-refresh" text size="small" class="fd-topbar-btn" :loading="loading" data-testid="fd-refresh" @click="loadData" />
-                <Dropdown
-                    v-model="selectedYear"
-                    :options="yearOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    class="fd-year-dropdown"
-                    data-testid="fd-year"
-                />
             </div>
         </div>
 
@@ -47,14 +54,6 @@
                 <div class="fd-section-header" @click="dashCollapsed = !dashCollapsed">
                     <span class="fd-section-title">FINANCIAL DASHBOARD</span>
                     <div class="fd-section-header-right">
-                        <Dropdown
-                            v-model="selectedYear"
-                            :options="yearOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            class="fd-inner-year-dropdown"
-                            @click.stop
-                        />
                         <i :class="dashCollapsed ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" class="fd-collapse-icon" />
                     </div>
                 </div>
@@ -63,17 +62,6 @@
                     <div class="fd-dashboard-columns">
                         <!-- Left column (70%) -->
                         <div class="fd-left-col">
-                            <!-- Time period tabs -->
-                            <div class="fd-period-tabs">
-                                <button
-                                    v-for="tp in timePeriodTabs"
-                                    :key="tp.value"
-                                    class="fd-period-tab"
-                                    :class="{ active: timePeriod === tp.value }"
-                                    @click="timePeriod = tp.value"
-                                >{{ tp.label }}</button>
-                            </div>
-
                             <!-- KPI row 1 -->
                             <div class="fd-kpi-grid fd-kpi-grid-5">
                                 <div class="fd-kpi-card fd-kpi-clickable" :class="{ 'fd-kpi-active': drillFilter === 'awarded' }" @click="toggleDrill('awarded')">
@@ -194,30 +182,11 @@
                 <div class="fd-section-header" @click="chartCollapsed = !chartCollapsed">
                     <span class="fd-section-title">REVENUE VS COST ANALYSIS</span>
                     <div class="fd-section-header-right">
-                        <Dropdown
-                            v-model="selectedCustomer"
-                            :options="customerOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            class="fd-inner-dropdown"
-                            @click.stop
-                        />
                         <i :class="chartCollapsed ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" class="fd-collapse-icon" />
                     </div>
                 </div>
 
                 <div v-show="!chartCollapsed" class="fd-section-body">
-                    <div class="fd-chart-controls">
-                        <div class="fd-toggle-group">
-                            <button
-                                v-for="cm in chartModes"
-                                :key="cm.value"
-                                class="fd-toggle-btn"
-                                :class="{ active: chartMode === cm.value }"
-                                @click="chartMode = cm.value"
-                            >{{ cm.label }}</button>
-                        </div>
-                    </div>
                     <div class="fd-chart-container">
                         <Chart
                             type="line"
@@ -273,6 +242,8 @@ import type {
 import {
     buildRevenueRows,
     groupRevenueByPeriod,
+    monthKey,
+    formatMonthLabel,
     round2,
     safeDate,
 } from '@/modules/estimating/features/analytics/utils/forecast';
@@ -282,8 +253,7 @@ type EstimateDetailResponse = {
     fcoEntries?: Array<{ dollarAdjustment?: number | null }>;
 };
 
-type TimePeriod = 'MTD' | 'QTD' | 'YTD' | 'ALL';
-type ChartMode = 'monthly' | 'quarterly' | 'cumulative';
+type TimePeriod = 'MTD' | 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'QTD' | 'YTD' | 'ALL' | 'Custom';
 
 const router = useRouter();
 const apiStore = useApiStore();
@@ -291,11 +261,7 @@ const apiStore = useApiStore();
 // ── UI state ──────────────────────────────────────────────────────────────────
 const loading = ref(false);
 const errorMessage = ref('');
-const activeView = ref('overview');
-const selectedBranch = ref('all');
-const selectedCustomer = ref('all');
 const timePeriod = ref<TimePeriod>('YTD');
-const chartMode = ref<ChartMode>('monthly');
 const pendingWeight = ref(50);
 const dashCollapsed = ref(false);
 const chartCollapsed = ref(false);
@@ -303,34 +269,27 @@ const winlossCollapsed = ref(false);
 
 const currentYear = new Date().getFullYear();
 const selectedYear = ref(currentYear);
+const customFrom = ref<Date | null>(null);
+const customTo = ref<Date | null>(null);
 
 // ── Raw data ──────────────────────────────────────────────────────────────────
 const estimates = ref<EstimateListItem[]>([]);
 const staffingPlans = ref<StaffingListItem[]>([]);
 const fcoByEstimateId = ref<Record<number, number>>({});
+const analyticsAvgMargin = ref(0);
 
 // ── Static option lists ───────────────────────────────────────────────────────
-const viewTabs = [
-    { label: 'Overview', value: 'overview' },
-    { label: 'All Jobs', value: 'alljobs' },
-    { label: 'Compare', value: 'compare' },
-];
-
 const timePeriodTabs = [
-    { label: 'MTD', value: 'MTD' as TimePeriod },
-    { label: 'QTD', value: 'QTD' as TimePeriod },
-    { label: 'YTD', value: 'YTD' as TimePeriod },
-    { label: 'ALL', value: 'ALL' as TimePeriod },
+    { label: 'MTD',    value: 'MTD' as TimePeriod },
+    { label: 'Q1',     value: 'Q1' as TimePeriod },
+    { label: 'Q2',     value: 'Q2' as TimePeriod },
+    { label: 'Q3',     value: 'Q3' as TimePeriod },
+    { label: 'Q4',     value: 'Q4' as TimePeriod },
+    { label: 'QTD',    value: 'QTD' as TimePeriod },
+    { label: 'YTD',    value: 'YTD' as TimePeriod },
+    { label: 'ALL',    value: 'ALL' as TimePeriod },
+    { label: 'Custom', value: 'Custom' as TimePeriod },
 ];
-
-const chartModes = [
-    { label: 'Monthly', value: 'monthly' as ChartMode },
-    { label: 'Quarterly', value: 'quarterly' as ChartMode },
-    { label: 'Cumulative', value: 'cumulative' as ChartMode },
-];
-
-const branchOptions = [{ label: 'All Branches', value: 'all' }];
-const customerOptions = [{ label: 'All Customers', value: 'all' }];
 
 const yearOptions = computed(() => {
     const years: Array<{ label: string; value: number }> = [];
@@ -341,21 +300,82 @@ const yearOptions = computed(() => {
 });
 
 // ── Date range helpers ────────────────────────────────────────────────────────
+const QUARTER_INDEX: Record<string, number> = { Q1: 0, Q2: 1, Q3: 2, Q4: 3 };
+
+// KPI window — clips to today so future months show $0 actuals correctly
 const periodDateRange = computed<{ from: Date; to: Date }>(() => {
     const now = new Date();
     const y = selectedYear.value;
 
+    if (timePeriod.value === 'Custom') {
+        return {
+            from: customFrom.value ?? new Date(y, 0, 1),
+            to: customTo.value ?? now,
+        };
+    }
+    if (timePeriod.value === 'MTD') {
+        const isPastYear = y < now.getFullYear();
+        return {
+            from: new Date(y, now.getMonth(), 1),
+            to: isPastYear ? new Date(y, now.getMonth() + 1, 0, 23, 59, 59) : now,
+        };
+    }
+    if (timePeriod.value in QUARTER_INDEX) {
+        const qIdx = QUARTER_INDEX[timePeriod.value];
+        const from = new Date(y, qIdx * 3, 1);
+        const qEnd = new Date(y, qIdx * 3 + 3, 0, 23, 59, 59);
+        return { from, to: qEnd < now ? qEnd : now };
+    }
+    if (timePeriod.value === 'QTD') {
+        const q = Math.floor(now.getMonth() / 3);
+        const isPastYear = y < now.getFullYear();
+        return {
+            from: new Date(y, q * 3, 1),
+            to: isPastYear ? new Date(y, q * 3 + 3, 0, 23, 59, 59) : now,
+        };
+    }
+    if (timePeriod.value === 'YTD') {
+        return {
+            from: new Date(y, 0, 1),
+            to: new Date(y, 11, 31, 23, 59, 59),
+        };
+    }
+    // ALL
+    return {
+        from: new Date(2000, 0, 1),
+        to: new Date(2099, 11, 31),
+    };
+});
+
+// Chart window — full structural period, no today-clip, so future months appear at $0
+const chartDateWindow = computed<{ from: Date; to: Date }>(() => {
+    const now = new Date();
+    const y = selectedYear.value;
+
+    if (timePeriod.value === 'Custom') {
+        return {
+            from: customFrom.value ?? new Date(y, 0, 1),
+            to: customTo.value ?? now,
+        };
+    }
     if (timePeriod.value === 'MTD') {
         return {
-            from: new Date(now.getFullYear(), now.getMonth(), 1),
-            to: now,
+            from: new Date(y, now.getMonth(), 1),
+            to: new Date(y, now.getMonth() + 1, 0, 23, 59, 59),
+        };
+    }
+    if (timePeriod.value in QUARTER_INDEX) {
+        const qIdx = QUARTER_INDEX[timePeriod.value];
+        return {
+            from: new Date(y, qIdx * 3, 1),
+            to: new Date(y, qIdx * 3 + 3, 0, 23, 59, 59),
         };
     }
     if (timePeriod.value === 'QTD') {
         const q = Math.floor(now.getMonth() / 3);
         return {
-            from: new Date(now.getFullYear(), q * 3, 1),
-            to: now,
+            from: new Date(y, q * 3, 1),
+            to: new Date(y, q * 3 + 3, 0, 23, 59, 59),
         };
     }
     if (timePeriod.value === 'YTD') {
@@ -383,26 +403,29 @@ const filteredEstimates = computed<EstimateListItem[]>(() => {
     });
 });
 
-// ── Revenue rows (all time, for chart) ────────────────────────────────────────
+// ── Revenue rows (selected year, for chart) ───────────────────────────────────
 const allRevenueRows = computed<RevenueRow[]>(() =>
     buildRevenueRows(
         estimates.value,
         staffingPlans.value,
         fcoByEstimateId.value,
-        new Date(currentYear, 0, 1),
-        new Date(currentYear, 11, 31, 23, 59, 59),
+        new Date(selectedYear.value, 0, 1),
+        new Date(selectedYear.value, 11, 31, 23, 59, 59),
     ),
 );
+
+function printPage() { window.print(); }
 
 // ── KPI computations ──────────────────────────────────────────────────────────
 const kpis = computed(() => {
     const awarded = filteredEstimates.value.filter(e => {
         const s = (e.status ?? '').toLowerCase();
-        return s === 'awarded' || s === 'active';
+        return s === 'awarded';
     });
+    // pending includes submitted — consistent with drill-down behavior
     const pending = filteredEstimates.value.filter(e => {
         const s = (e.status ?? '').toLowerCase();
-        return s === 'pending' || s === 'proposed' || s === 'draft';
+        return s === 'pending' || s === 'submitted' || s === 'proposed' || s === 'draft';
     });
     const lost = filteredEstimates.value.filter(e => {
         const s = (e.status ?? '').toLowerCase();
@@ -412,14 +435,15 @@ const kpis = computed(() => {
     const awardedAmount = round2(awarded.reduce((s, e) => s + Number(e.grandTotal ?? 0), 0));
     const pendingAmount = round2(pending.reduce((s, e) => s + Number(e.grandTotal ?? 0), 0));
     const lostAmount = round2(lost.reduce((s, e) => s + Number(e.grandTotal ?? 0), 0));
-    const totalPipeline = round2(awardedAmount + pendingAmount + lostAmount);
+    // Total Pipeline = active work only (awarded + pending bids) — lost is separate
+    const totalPipeline = round2(awardedAmount + pendingAmount);
     const weightedPipeline = round2(awardedAmount + pendingAmount * (pendingWeight.value / 100));
-    const totalCount = filteredEstimates.value.length;
+    const totalCount = awarded.length + pending.length;
 
     // Staffing plans
     const nonConvertedSPs = staffingPlans.value.filter(sp => !sp.convertedEstimateId);
     const futureRevenue = round2(nonConvertedSPs.reduce((s, sp) => s + Number(sp.roughLaborTotal ?? 0), 0));
-    const avgMargin = 0; // stub — no margin data in EstimateListItem
+    const avgMargin = analyticsAvgMargin.value;
     const futureProfit = round2(futureRevenue * (avgMargin / 100));
 
     return {
@@ -499,54 +523,97 @@ const winRateColor = computed(() => {
 
 // ── Chart data ─────────────────────────────────────────────────────────────────
 const periodRows = computed(() => {
-    const chartPeriod = chartMode.value === 'quarterly' ? 'quarter' : 'month';
-    return groupRevenueByPeriod(allRevenueRows.value, chartPeriod);
+    const { from, to } = chartDateWindow.value;
+    const source = timePeriod.value === 'ALL'
+        ? allRevenueRows.value
+        : buildRevenueRows(
+            estimates.value,
+            staffingPlans.value,
+            fcoByEstimateId.value,
+            from,
+            to,
+        );
+    const rows = groupRevenueByPeriod(source, 'month');
+
+    // Fill in $0 buckets for every month in the chart window so future months are visible
+    if (timePeriod.value !== 'ALL') {
+        const existing = new Set(rows.map(r => r.key));
+        const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+        const windowEnd = new Date(to.getFullYear(), to.getMonth(), 1);
+        while (cursor <= windowEnd) {
+            const key = monthKey(cursor);
+            if (!existing.has(key)) {
+                rows.push({
+                    key,
+                    label: formatMonthLabel(key),
+                    awardedAmount: 0,
+                    pipelineAmount: 0,
+                    staffingAmount: 0,
+                    lostAmount: 0,
+                    fcoAmount: 0,
+                    totalForecast: 0,
+                });
+            }
+            cursor.setMonth(cursor.getMonth() + 1);
+        }
+        rows.sort((a, b) => a.key.localeCompare(b.key));
+    }
+
+    return rows;
 });
 
 const revenueChartData = computed(() => {
     const labels = periodRows.value.map(r => r.label);
 
-    let awardedData = periodRows.value.map(r => r.awardedAmount);
-    let pipelineData = periodRows.value.map(r => r.pipelineAmount);
-    let lostData = periodRows.value.map(r => r.lostAmount);
+    const awardedData  = periodRows.value.map(r => r.awardedAmount);
+    const pipelineData = periodRows.value.map(r => r.pipelineAmount);
+    const lostData     = periodRows.value.map(r => r.lostAmount);
+    const staffingData = periodRows.value.map(r => r.staffingAmount ?? 0);
+    const hasStaffing  = staffingData.some(v => v > 0);
 
-    if (chartMode.value === 'cumulative') {
-        awardedData = cumSum(awardedData);
-        pipelineData = cumSum(pipelineData);
-        lostData = cumSum(lostData);
+    const datasets: any[] = [
+        {
+            label: 'Awarded Revenue',
+            borderColor: '#22c55e',
+            backgroundColor: 'rgba(34,197,94,0.1)',
+            pointBackgroundColor: '#22c55e',
+            tension: 0.3,
+            fill: false,
+            data: awardedData,
+        },
+        {
+            label: 'Pipeline',
+            borderColor: '#f97316',
+            backgroundColor: 'rgba(249,115,22,0.08)',
+            borderDash: [5, 5],
+            tension: 0.3,
+            fill: false,
+            data: pipelineData,
+        },
+        {
+            label: 'Lost Revenue',
+            borderColor: '#f87171',
+            backgroundColor: 'rgba(248,113,113,0.08)',
+            tension: 0.3,
+            fill: false,
+            data: lostData,
+        },
+    ];
+
+    if (hasStaffing) {
+        datasets.push({
+            label: 'Staffing Pipeline',
+            borderColor: '#a855f7',
+            backgroundColor: 'rgba(168,85,247,0.10)',
+            pointBackgroundColor: '#a855f7',
+            borderDash: [6, 3],
+            tension: 0.3,
+            fill: false,
+            data: staffingData,
+        });
     }
 
-    return {
-        labels,
-        datasets: [
-            {
-                label: 'Awarded Revenue',
-                borderColor: '#22c55e',
-                backgroundColor: 'rgba(34,197,94,0.1)',
-                pointBackgroundColor: '#22c55e',
-                tension: 0.3,
-                fill: false,
-                data: awardedData,
-            },
-            {
-                label: 'Pipeline',
-                borderColor: '#f97316',
-                backgroundColor: 'rgba(249,115,22,0.08)',
-                borderDash: [5, 5],
-                tension: 0.3,
-                fill: false,
-                data: pipelineData,
-            },
-            {
-                label: 'Lost Revenue',
-                borderColor: '#f87171',
-                backgroundColor: 'rgba(248,113,113,0.08)',
-                tension: 0.3,
-                fill: false,
-                data: lostData,
-            },
-        ],
-    };
+    return { labels, datasets };
 });
 
 const revenueChartOptions = {
@@ -563,6 +630,8 @@ const revenueChartOptions = {
             grid: { color: 'rgba(148,163,184,0.15)' },
         },
         y: {
+            beginAtZero: true,
+            grace: '15%',
             ticks: {
                 color: '#94a3b8',
                 callback: (value: number | string) => fmtM(Number(value)),
@@ -624,14 +693,16 @@ async function loadData() {
     loading.value = true;
     errorMessage.value = '';
     try {
-        const [estimateItems, staffingItems] = await Promise.all([
+        const [estimateItems, staffingItems, analyticsResp] = await Promise.all([
             fetchPaged<EstimateListItem>('/api/v1/estimates'),
             fetchPaged<StaffingListItem>('/api/v1/staffing-plans'),
+            apiStore.api.get('/api/v1/analytics/dashboard').catch(() => ({ data: null })),
         ]);
 
         estimates.value = estimateItems;
         staffingPlans.value = staffingItems;
         fcoByEstimateId.value = await fetchFcoTotals(estimateItems);
+        analyticsAvgMargin.value = Number(analyticsResp.data?.kpis?.avgMarginPct ?? 0);
     } catch (err: unknown) {
         const anyErr = err as { response?: { status?: number } };
         const status = anyErr?.response?.status ? ` (${anyErr.response.status})` : '';
@@ -659,10 +730,6 @@ function fmtDate(value?: string): string {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function cumSum(arr: number[]): number[] {
-    let acc = 0;
-    return arr.map(v => { acc += v; return acc; });
-}
 
 function csvEscape(value: string | number): string {
     const asText = String(value ?? '');
@@ -784,7 +851,7 @@ onMounted(loadData);
 }
 
 .fd-year-dropdown {
-    width: 100px;
+    width: 120px;
 }
 
 .fd-inner-year-dropdown {
@@ -861,40 +928,54 @@ onMounted(loadData);
     min-width: 220px;
 }
 
-/* ── Time period tabs ───────────────────────────────────────────── */
-.fd-period-tabs {
+/* ── Period filter row ──────────────────────────────────────────── */
+.fd-filter-row {
     display: flex;
-    border: 1px solid var(--surface-border);
-    border-radius: 6px;
-    overflow: hidden;
-    width: fit-content;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
-.fd-period-tab {
-    padding: 5px 18px;
-    background: transparent;
-    border: none;
-    border-right: 1px solid var(--surface-border);
-    color: var(--text-color-secondary);
-    cursor: pointer;
-    font-size: 0.78rem;
+.fd-filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fd-filter-label {
+    font-size: 0.65rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    transition: background 0.15s, color 0.15s;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-color-secondary);
 }
 
-.fd-period-tab:last-child {
-    border-right: none;
+.fd-period-dropdown {
+    width: 220px;
+    font-size: 0.82rem;
 }
 
-.fd-period-tab.active {
-    background: var(--primary-color);
-    color: #fff;
+:deep(.fd-period-dropdown .p-dropdown) {
+    font-size: 0.82rem;
 }
 
-.fd-period-tab:not(.active):hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-color);
+.fd-year-dropdown-inner {
+    width: 90px;
+    font-size: 0.82rem;
+}
+
+:deep(.fd-year-dropdown-inner .p-dropdown) {
+    font-size: 0.82rem;
+}
+
+.fd-date-picker {
+    font-size: 0.82rem;
+}
+
+:deep(.fd-date-picker .p-inputtext) {
+    font-size: 0.82rem;
+    padding: 6px 8px;
+    width: 130px;
 }
 
 /* ── KPI grids ──────────────────────────────────────────────────── */

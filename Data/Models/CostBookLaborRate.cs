@@ -18,4 +18,10 @@ public class CostBookLaborRate
     public decimal DtRate { get; set; }
 
     public int SortOrder { get; set; }
+
+    /// <summary>
+    /// True when this position was auto-added from a rate book because no cost entry existed.
+    /// The rate was defaulted to 100% of the bill rate (0% margin). Must be reviewed and corrected.
+    /// </summary>
+    public bool NeedsReview { get; set; } = false;
 }

@@ -68,6 +68,7 @@ export interface LaborScheduleRow {
     position?: string | null;
     craftCode?: string | null;
     scheduleJson?: string | null;
+    laborType?: string | null;
 }
 
 export interface ManpowerMonthlyRow {
@@ -160,7 +161,7 @@ export function estimateCategory(status: string): 'awarded' | 'pipeline' | 'lost
     const s = normalizeStatus(status);
     if (s === 'Awarded') return 'awarded';
     if (s === 'Lost') return 'lost';
-    if (s === 'Draft' || s === 'Pending' || s === 'Proposed') return 'pipeline';
+    if (s === 'Draft' || s === 'Pending' || s === 'Proposed' || s === 'Submitted' || s === 'Submitted for Approval') return 'pipeline';
     return 'excluded';
 }
 
@@ -352,6 +353,8 @@ export function computeManpowerDemand(
         toDate: Date;
         includePendingEstimates: boolean;
         includeStaffingPlans: boolean;
+        awardedOnly?: boolean;
+        directOnly?: boolean;
     },
 ): {
     monthRows: ManpowerMonthlyRow[];
@@ -371,6 +374,7 @@ export function computeManpowerDemand(
         const normalized = normalizeStatus(status);
         if (sourceType === 'estimate') {
             if (normalized === 'Awarded') return true;
+            if (options.awardedOnly) return false;
             if (normalized === 'Draft' || normalized === 'Pending' || normalized === 'Proposed') {
                 return options.includePendingEstimates;
             }
@@ -385,6 +389,7 @@ export function computeManpowerDemand(
         if (!shouldIncludeSource(source.sourceType, source.sourceStatus)) continue;
 
         for (const row of source.rows) {
+            if (options.directOnly && row.laborType !== 'Direct') continue;
             const craft = normalizeCraft(row);
             const schedule = parseScheduleJson(row.scheduleJson);
 

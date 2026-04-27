@@ -1,0 +1,18 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "https://localhost:7210",
+      "localStorage": [
+        {
+          "name": "stronghold-theme",
+          "value": "light"
+        },
+        {
+          "name": "ste_dev_company",
+          "value": "CSL"
+        }
+      ]
+    }
+  ]
+}

@@ -532,7 +532,7 @@ test.describe('Estimating - analytics', () => {
         await expect(financialDash).toContainText('LOST REVENUE');
         await expect(financialDash).toContainText('$20K');
         await expect(financialDash).toContainText('TOTAL PIPELINE');
-        await expect(financialDash).toContainText('$170K');
+        await expect(financialDash).toContainText('$150K');
         await expect(financialDash).toContainText('WEIGHTED PIPELINE');
         await expect(financialDash).toContainText('$125K');
 

@@ -193,6 +193,9 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Property<string>("NavCode")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("NeedsReview")
+                        .HasColumnType("bit");
+
                     b.Property<decimal>("OtRate")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -416,8 +419,9 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Property<string>("Director")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("DtWeekends")
-                        .HasColumnType("bit");
+                    b.Property<string>("DtWeekends")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("datetime2");
@@ -483,8 +487,8 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
@@ -694,6 +698,10 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Property<decimal>("Subtotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Unit")
                         .IsRequired()
@@ -1202,8 +1210,9 @@ namespace Stronghold.EnterpriseEstimating.Data.Migrations
                     b.Property<int>("Days")
                         .HasColumnType("int");
 
-                    b.Property<bool>("DtWeekends")
-                        .HasColumnType("bit");
+                    b.Property<string>("DtWeekends")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("datetime2");

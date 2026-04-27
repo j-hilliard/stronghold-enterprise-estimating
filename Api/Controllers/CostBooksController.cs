@@ -81,6 +81,8 @@ public class CostBooksController : ControllerBase
                     Position = r.Position, LaborType = r.LaborType,
                     CraftCode = r.CraftCode, NavCode = r.NavCode,
                     StRate = r.StRate, OtRate = r.OtRate, DtRate = r.DtRate,
+                    // Clearing NeedsReview = false when user explicitly saves the rate
+                    NeedsReview = r.NeedsReview,
                     SortOrder = i
                 });
             }
@@ -136,7 +138,25 @@ public class CostBooksController : ControllerBase
         return NoContent();
     }
 
-    // Seed/reset the standard cost book for this company
+    /// <summary>
+    /// Returns all position names across all cost books for this company.
+    /// Used by rate book save logic to detect positions that need auto-adding.
+    /// </summary>
+    [HttpGet("positions")]
+    public async Task<IActionResult> GetPositions(CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        var positions = await db.CostBookLaborRates
+            .Where(r => r.CostBook.CompanyCode == CompanyCode)
+            .Select(r => r.Position)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToListAsync(ct);
+        return Ok(positions);
+    }
+
+    // Reset only standard burden and expense defaults. Labor/equipment costs are demo-critical
+    // internal rates and must not be wiped by a setup or UI reset action.
     [HttpPost("reset-standard")]
     public async Task<IActionResult> ResetStandard(CancellationToken ct = default)
     {
@@ -162,8 +182,6 @@ public class CostBooksController : ControllerBase
         }
         else
         {
-            db.CostBookLaborRates.RemoveRange(existing.LaborRates);
-            db.CostBookEquipmentRates.RemoveRange(existing.EquipmentRates);
             db.CostBookExpenses.RemoveRange(existing.Expenses);
             db.CostBookOverheadItems.RemoveRange(existing.OverheadItems);
             existing.UpdatedBy = Username;
@@ -218,7 +236,13 @@ public class CostBooksController : ControllerBase
         }
 
         await db.SaveChangesAsync(ct);
-        return Ok(new { costBookId = existing.CostBookId, name = existing.Name });
+        return Ok(new
+        {
+            costBookId = existing.CostBookId,
+            name = existing.Name,
+            laborRatesPreserved = existing.LaborRates.Count,
+            equipmentRatesPreserved = existing.EquipmentRates.Count
+        });
     }
 }
 
@@ -233,7 +257,8 @@ public record CostBookUpsertDto(
 public record CostBookLaborRateDto(
     string Position, string LaborType,
     string? CraftCode, string? NavCode,
-    decimal StRate, decimal OtRate, decimal DtRate);
+    decimal StRate, decimal OtRate, decimal DtRate,
+    bool NeedsReview = false);
 
 public record CostBookEquipmentRateDto(
     string Name,

@@ -10,7 +10,7 @@ export const apps = {
                     label: 'Estimates',
                     icon: 'pi pi-fw pi-list',
                     items: [
-                        { label: 'All Estimates', icon: 'pi pi-fw pi-list', to: '/estimating/estimates' },
+                        { label: 'Quote Log', icon: 'pi pi-fw pi-list', to: '/estimating/estimates' },
                         { label: 'New Estimate', icon: 'pi pi-fw pi-plus', to: '/estimating/estimates/new' },
                     ],
                 },
@@ -18,7 +18,7 @@ export const apps = {
                     label: 'Staffing Plans',
                     icon: 'pi pi-fw pi-users',
                     items: [
-                        { label: 'All Plans', icon: 'pi pi-fw pi-users', to: '/estimating/staffing-plans' },
+                        { label: 'Staffing Plan Log', icon: 'pi pi-fw pi-users', to: '/estimating/staffing-plans' },
                         { label: 'New Staffing Plan', icon: 'pi pi-fw pi-user-plus', to: '/estimating/staffing-plans/new' },
                     ],
                 },

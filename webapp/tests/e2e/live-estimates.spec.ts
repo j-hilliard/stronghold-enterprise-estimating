@@ -55,7 +55,7 @@ test.describe('Live — estimates', () => {
         const estimateId = Number(idMatch![1]);
 
         // DB reconciliation — fetch directly from API
-        const detail = await apiGet(request, `/api/v1/estimates/${estimateId}`);
+        const detail = await apiGet(request, `/api/v1.0/estimates/${estimateId}`);
         expect(detail.name).toBe(estimateName);
         expect(detail.client).toBe('Shell');
         expect(detail.city).toBe('Deer Park');
@@ -67,7 +67,7 @@ test.describe('Live — estimates', () => {
         const estimateName = `${TAG} Save-Reopen ${Date.now()}`;
 
         // Create via API
-        const created = await apiPost(request, '/api/v1/estimates', {
+        const created = await apiPost(request, '/api/v1.0/estimates', {
             name: estimateName,
             client: 'BP',
             clientCode: 'BPH',
@@ -78,6 +78,7 @@ test.describe('Live — estimates', () => {
             status: 'Draft',
             shift: 'Day',
             hoursPerShift: 10,
+            otMethod: '1.5x',
         });
         const estimateId = created.estimateId;
         expect(estimateId).toBeTruthy();
@@ -108,7 +109,7 @@ test.describe('Live — estimates', () => {
         const estimateName = `${TAG} Status-Test ${Date.now()}`;
 
         // Create via API
-        const created = await apiPost(request, '/api/v1/estimates', {
+        const created = await apiPost(request, '/api/v1.0/estimates', {
             name: estimateName,
             client: 'Valero',
             clientCode: 'VLO',
@@ -119,6 +120,7 @@ test.describe('Live — estimates', () => {
             status: 'Draft',
             shift: 'Day',
             hoursPerShift: 10,
+            otMethod: '1.5x',
         });
         const estimateId = created.estimateId;
 
@@ -142,7 +144,7 @@ test.describe('Live — estimates', () => {
         const estimateName = `${TAG} Revision ${Date.now()}`;
 
         // Create estimate via API
-        const created = await apiPost(request, '/api/v1/estimates', {
+        const created = await apiPost(request, '/api/v1.0/estimates', {
             name: estimateName,
             client: 'BP',
             clientCode: 'BPH',
@@ -153,6 +155,7 @@ test.describe('Live — estimates', () => {
             status: 'Draft',
             shift: 'Day',
             hoursPerShift: 10,
+            otMethod: '1.5x',
         });
         const estimateId = created.estimateId;
 
@@ -166,7 +169,7 @@ test.describe('Live — estimates', () => {
             // Revision dialog or navigation to new revision
             await page.waitForTimeout(1500);
             // Verify via API
-            const revisions = await apiGet(request, `/api/v1/estimates/${estimateId}/revisions`);
+            const revisions = await apiGet(request, `/api/v1.0/estimates/${estimateId}/revisions`);
             expect(Array.isArray(revisions)).toBeTruthy();
         } else {
             // Revision UI not yet exposed — mark as pending

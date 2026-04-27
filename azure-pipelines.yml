@@ -49,10 +49,10 @@ stages:
             displayName: 'install NuGet 6.5.0'
 
           - task: UseDotNet@2
-            displayName: 'Install .NET SDK 7.0.410'
+            displayName: 'Install .NET SDK 10.x'
             inputs:
               packageType: 'sdk'
-              version: '7.0.410'
+              version: '10.x'
               installationPath: $(Agent.ToolsDirectory)/dotnet
 
           - script: |
@@ -81,7 +81,7 @@ stages:
             inputs:
               command: custom
               custom: tool
-              arguments: 'install --global dotnet-ef --version 7.0.5 --ignore-failed-sources'
+              arguments: 'install --global dotnet-ef --ignore-failed-sources'
             displayName: 'install dotnet-ef'
             condition: eq(variables.isDevelop, true)
 

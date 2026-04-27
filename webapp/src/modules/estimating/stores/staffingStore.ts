@@ -22,7 +22,7 @@ export interface StaffingPlanHeader {
     startDate?: string;
     endDate?: string;
     otMethod: string;
-    dtWeekends: boolean;
+    dtWeekends: string;
     roughLaborTotal?: number;
 }
 
@@ -35,7 +35,7 @@ export function defaultSpHeader(): StaffingPlanHeader {
         days: 0,
         status: 'Draft',
         otMethod: 'daily8',
-        dtWeekends: false,
+        dtWeekends: 'none',
     };
 }
 
@@ -93,11 +93,43 @@ export const useStaffingStore = defineStore('staffing', () => {
             sortOrder: r.sortOrder,
         }));
         rateBookName.value = data.name ?? '';
+        applyRateBookToRows();
     }
 
     function clearRateBook() {
         rateBookRates.value = [];
         rateBookName.value = '';
+    }
+
+    function findRateBookRate(position: string, laborType?: string) {
+        const normalizedPosition = position.trim().toLowerCase();
+        const normalizedType = laborType?.trim().toLowerCase();
+
+        return rateBookRates.value.find(
+            r => r.position.trim().toLowerCase() === normalizedPosition
+              && (!normalizedType || r.laborType.trim().toLowerCase() === normalizedType)
+        ) ?? rateBookRates.value.find(
+            r => r.position.trim().toLowerCase() === normalizedPosition
+        );
+    }
+
+    function applyRateBookRateToRow(row: LaborRow) {
+        const match = findRateBookRate(row.position, row.laborType);
+        if (!match) return;
+
+        row.laborType = match.laborType || row.laborType;
+        row.craftCode = match.craftCode;
+        row.navCode = match.navCode;
+        row.billStRate = match.stRate;
+        row.billOtRate = match.otRate;
+        row.billDtRate = match.dtRate;
+    }
+
+    function applyRateBookToRows() {
+        for (const row of laborRows.value) {
+            applyRateBookRateToRow(row);
+            recalcLaborRow(row);
+        }
     }
 
     async function fetchPlan(id: number) {
@@ -122,7 +154,9 @@ export const useStaffingStore = defineStore('staffing', () => {
                 startDate: data.startDate?.slice(0, 10),
                 endDate: data.endDate?.slice(0, 10),
                 otMethod: data.otMethod,
-                dtWeekends: data.dtWeekends,
+                dtWeekends: typeof data.dtWeekends === 'boolean'
+                    ? (data.dtWeekends ? 'sat_sun' : 'none')
+                    : (data.dtWeekends ?? 'none'),
                 roughLaborTotal: data.roughLaborTotal,
             };
             laborRows.value = data.laborRows?.map((r: any) => ({
@@ -219,14 +253,17 @@ export const useStaffingStore = defineStore('staffing', () => {
 
     function addLaborRowFromAi(opts: { position: string; shift: string; qty: number }) {
         const count = Math.max(1, opts.qty ?? 1);
+        const match = findRateBookRate(opts.position, 'Direct');
         for (let i = 0; i < count; i++) {
             laborRows.value.push({
                 position: opts.position,
-                laborType: 'Direct',
+                laborType: match?.laborType ?? 'Direct',
+                craftCode: match?.craftCode,
+                navCode: match?.navCode,
                 shift: opts.shift || header.value.shift,
-                billStRate: 0,
-                billOtRate: 0,
-                billDtRate: 0,
+                billStRate: match?.stRate ?? 0,
+                billOtRate: match?.otRate ?? 0,
+                billDtRate: match?.dtRate ?? 0,
                 stHours: 0,
                 otHours: 0,
                 dtHours: 0,
@@ -245,7 +282,7 @@ export const useStaffingStore = defineStore('staffing', () => {
         header, laborRows, rateBookRates, rateBookName,
         isDirty, isLoading, isSaving, isNew, isConverted,
         reset, markDirty, fetchPlan, savePlan, convertToEstimate,
-        loadRateBook, clearRateBook,
+        loadRateBook, clearRateBook, applyRateBookToRows,
         addLaborRow, addLaborRowFromAi, removeLaborRow, recalcLaborRow,
     };
 });

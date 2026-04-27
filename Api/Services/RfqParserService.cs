@@ -23,10 +23,23 @@ public class RfqParserService
         "Scaffold Builder", "Safety Watch", "Fire Watch", "Hole Watch", "Driver/Teamster"
     };
 
+    private readonly string _chatPath;
+
     public RfqParserService(IHttpClientFactory httpClientFactory, IConfiguration config)
     {
-        _http = httpClientFactory.CreateClient("groq");
-        _model = config["Ai:GroqModel"] ?? "llama-3.3-70b-versatile";
+        var provider = config["Ai:Provider"] ?? "groq";
+        if (provider == "azure")
+        {
+            _http = httpClientFactory.CreateClient("azure-ai");
+            _model = config["Ai:AzureFoundryModel"] ?? "gpt-4.1-mini-1";
+            _chatPath = "chat/completions";
+        }
+        else
+        {
+            _http = httpClientFactory.CreateClient("groq");
+            _model = config["Ai:GroqModel"] ?? "llama-3.3-70b-versatile";
+            _chatPath = "openai/v1/chat/completions";
+        }
     }
 
     public async Task<AiChatResponse> ParseAsync(IFormFile file, CancellationToken ct = default)
@@ -100,7 +113,7 @@ RFQ DOCUMENT TEXT:
 
         var json = JsonSerializer.Serialize(requestBody);
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
-        using var resp = await _http.PostAsync("/openai/v1/chat/completions", content, ct);
+        using var resp = await _http.PostAsync(_chatPath, content, ct);
 
         if (!resp.IsSuccessStatusCode)
         {

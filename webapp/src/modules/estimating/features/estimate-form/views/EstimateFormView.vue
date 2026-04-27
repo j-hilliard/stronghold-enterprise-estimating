@@ -18,7 +18,25 @@
                     label="Save"
                     icon="pi pi-save"
                     :loading="store.isSaving"
+                    data-testid="est-save"
                     @click="saveEstimate"
+                />
+                <Button
+                    v-if="!isNew && store.header.status === 'Draft'"
+                    label="Submit for Approval"
+                    icon="pi pi-send"
+                    severity="success"
+                    :loading="submittingForApproval"
+                    @click="submitForApproval"
+                />
+                <Button
+                    v-if="!isNew"
+                    label="Clone as Scenario"
+                    icon="pi pi-copy"
+                    severity="secondary"
+                    outlined
+                    :loading="cloningScenario"
+                    @click="cloneAsScenario"
                 />
                 <Button
                     v-if="!isNew"
@@ -83,6 +101,7 @@
                         @loadCrew="crewDialogVisible = true"
                         @openRateBook="rateBookDialogVisible = true"
                         @clearRateBook="store.clearRateBook()"
+                        @applyRates="store.applyRateBookToRows()"
                     />
                 </div>
             </div>
@@ -99,6 +118,7 @@
                     <EquipmentSection
                         v-model:rows="store.equipmentRows"
                         :defaultDays="store.header.days"
+                        :rateBookEquipmentRates="store.rateBookEquipmentRates"
                         @change="store.recalcSummary(); store.markDirty()"
                     />
                 </div>
@@ -115,7 +135,9 @@
                 <div v-show="!collapsed.expenses" class="section-body">
                     <ExpenseSection
                         v-model:rows="store.expenseRows"
-                        :defaultDays="store.header.days"
+                        :jobDays="store.header.days"
+                        :laborRows="store.laborRows"
+                        :rateBookExpenseItems="store.rateBookExpenseItems"
                         @change="store.recalcSummary(); store.markDirty()"
                     />
                 </div>
@@ -171,9 +193,11 @@
 
         <!-- Revision drawer -->
         <RevisionDrawer
+            ref="revisionDrawerRef"
             v-model:visible="revisionDrawerVisible"
             :estimateId="store.header.estimateId"
             @restored="onRevisionRestored"
+            @saveAndCreate="onSaveAndCreate"
         />
 
         <!-- Rate book picker -->
@@ -208,11 +232,24 @@
 
         <!-- Load Crew Template dialog -->
         <Dialog v-model:visible="crewDialogVisible" header="Load Crew Template" modal style="width: 520px;">
+            <div v-if="!store.rateBookName" class="flex align-items-center gap-2 p-2 mb-3 border-round" style="background: rgba(148,163,184,0.08); border: 1px solid var(--surface-border);">
+                <i class="pi pi-info-circle" style="color: var(--text-color-secondary); font-size: 0.85rem;" />
+                <span style="color: var(--text-color-secondary); font-size: 0.8rem;">No rate book loaded — positions will be added with $0 rates. Load a rate book after to fill rates.</span>
+            </div>
             <div v-if="crewListLoading" class="flex justify-content-center py-6">
                 <ProgressSpinner />
             </div>
-            <div v-else-if="crewList.length === 0" class="text-center py-4 text-slate-400 text-sm">
-                No crew templates found. Create one in the Crew Templates section.
+            <div v-else-if="crewList.length === 0" class="flex flex-col align-items-center gap-3 py-6">
+                <i class="pi pi-users text-4xl text-slate-500" />
+                <p class="text-slate-400 text-sm m-0">No crew templates found.</p>
+                <Button
+                    label="Go to Crew Templates"
+                    icon="pi pi-arrow-right"
+                    severity="secondary"
+                    outlined
+                    size="small"
+                    @click="crewDialogVisible = false; router.push('/estimating/crew-templates')"
+                />
             </div>
             <div v-else class="rate-book-picker-list">
                 <div
@@ -246,6 +283,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
+import ConfirmDialog from 'primevue/confirmdialog';
 import { useEstimateStore } from '../../../stores/estimateStore';
 import { useAiChatStore } from '../../../stores/aiChatStore';
 import { useUserStore } from '@/stores/userStore';
@@ -264,6 +303,7 @@ import RevisionDrawer from '../components/RevisionDrawer.vue';
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const confirm = useConfirm();
 const store = useEstimateStore();
 const apiStore = useApiStore();
 const aiStore = useAiChatStore();
@@ -298,6 +338,14 @@ function buildAiContext() {
             dtRate: Number(r.billDtRate),
             stHours: Number(r.stHours),
             otHours: Number(r.otHours),
+            subtotal: Number(r.subtotal),
+        })),
+        equipmentRows: store.equipmentRows.map(r => ({
+            name: r.name,
+            rateType: r.rateType,
+            rate: Number(r.rate),
+            qty: Number(r.qty),
+            days: Number(r.days),
             subtotal: Number(r.subtotal),
         })),
     };
@@ -337,7 +385,10 @@ const isNew = computed(() => !route.params.id || route.params.id === 'new');
 const showRevisionDialog = ref(false);
 const revisionNote = ref('');
 const revisionDrawerVisible = ref(false);
+const revisionDrawerRef = ref<InstanceType<typeof RevisionDrawer> | null>(null);
 const exportingPdf = ref(false);
+const submittingForApproval = ref(false);
+const cloningScenario = ref(false);
 
 // Rate book picker
 const rateBookDialogVisible = ref(false);
@@ -403,34 +454,55 @@ async function applyCrewTemplate() {
         const startDate = store.header.startDate;
         const endDate = store.header.endDate;
 
-        function buildSchedule(): string {
+        function buildScheduleWithQty(qty: number): string {
             if (!startDate || !endDate) return '{}';
             const sched: Record<string, number> = {};
             const cur = new Date(startDate + 'T12:00:00');
             const end = new Date(endDate + 'T12:00:00');
             while (cur <= end) {
-                sched[cur.toISOString().slice(0, 10)] = 1;
+                sched[cur.toISOString().slice(0, 10)] = qty;
                 cur.setDate(cur.getDate() + 1);
             }
             return JSON.stringify(sched);
         }
 
-        const newRows: any[] = [];
+        // One row per position+shift — qty becomes the headcount per day.
+        // If a matching row already exists, add to its headcount instead of appending.
+        const merged = [...store.laborRows];
+
         for (const row of data.rows) {
             const qty = row.qty > 0 ? row.qty : 1;
             const rate = rateMap.get(row.position?.toLowerCase() ?? '');
-            const rowShift = store.header.shift === 'Both' ? 'Day' : (store.header.shift ?? 'Day');
-            for (let i = 0; i < qty; i++) {
-                newRows.push({
+            const rowShift = row.shift ?? (store.header.shift === 'Both' ? 'Day' : (store.header.shift ?? 'Day'));
+
+            const existing = merged.find(r => r.position === row.position && r.shift === rowShift);
+            if (existing) {
+                let sched: Record<string, number> = {};
+                try { sched = JSON.parse(existing.scheduleJson ?? '{}'); } catch { /* */ }
+                if (startDate && endDate) {
+                    // Iterate full job range so new dates get filled, not just existing keys
+                    const cur = new Date(startDate + 'T12:00:00');
+                    const end = new Date(endDate + 'T12:00:00');
+                    while (cur <= end) {
+                        const iso = cur.toISOString().slice(0, 10);
+                        sched[iso] = (sched[iso] ?? 0) + qty;
+                        cur.setDate(cur.getDate() + 1);
+                    }
+                } else {
+                    for (const iso of Object.keys(sched)) sched[iso] = (sched[iso] ?? 0) + qty;
+                }
+                existing.scheduleJson = JSON.stringify(sched);
+            } else {
+                merged.push({
                     position: row.position,
                     laborType: row.laborType ?? 'Direct',
-                    shift: row.shift ?? rowShift,
+                    shift: rowShift,
                     craftCode: row.craftCode ?? rate?.craftCode ?? null,
                     navCode: rate?.navCode ?? null,
                     billStRate: rate?.stRate ?? 0,
                     billOtRate: rate?.otRate ?? 0,
                     billDtRate: rate?.dtRate ?? 0,
-                    scheduleJson: buildSchedule(),
+                    scheduleJson: buildScheduleWithQty(qty),
                     stHours: 0,
                     otHours: 0,
                     dtHours: 0,
@@ -439,12 +511,13 @@ async function applyCrewTemplate() {
             }
         }
 
-        store.laborRows = [...store.laborRows, ...newRows];
+        store.laborRows = merged;
         store.recalcAllLaborRows();
         store.recalcSummary();
         store.markDirty();
         crewDialogVisible.value = false;
-        toast.add({ severity: 'success', summary: 'Crew Loaded', detail: `Added ${newRows.length} row(s) from "${data.name}"`, life: 3000 });
+        const posCount = data.rows.length;
+        toast.add({ severity: 'success', summary: 'Crew Loaded', detail: `Added ${posCount} position(s) from "${data.name}"`, life: 3000 });
     } catch {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to apply crew template', life: 4000 });
     } finally {
@@ -506,6 +579,20 @@ async function saveEstimate() {
     }
 }
 
+async function cloneAsScenario() {
+    if (!store.header.estimateId) return;
+    cloningScenario.value = true;
+    try {
+        const { data } = await apiStore.api.post(`/api/v1/estimates/${store.header.estimateId}/clone?asScenario=true`);
+        toast.add({ severity: 'success', summary: 'Cloned', detail: `Scenario created: ${data.estimateNumber} — opening now`, life: 4000 });
+        router.push(`/estimating/estimates/${data.estimateId}`);
+    } catch {
+        toast.add({ severity: 'error', summary: 'Clone Failed', detail: 'Could not clone estimate', life: 4000 });
+    } finally {
+        cloningScenario.value = false;
+    }
+}
+
 async function exportProposal() {
     if (!store.header.estimateId) return;
     exportingPdf.value = true;
@@ -527,6 +614,36 @@ async function exportProposal() {
     }
 }
 
+async function submitForApproval() {
+    if (!store.header.estimateId) return;
+    submittingForApproval.value = true;
+    try {
+        await store.saveEstimate();
+        await exportProposal();
+        confirm.require({
+            message: 'PDF opened for review. Mark this estimate as Submitted for Approval?',
+            header: 'Submit for Approval',
+            icon: 'pi pi-send',
+            acceptLabel: 'Yes, Submit',
+            rejectLabel: 'Cancel',
+            accept: async () => {
+                try {
+                    await apiStore.api.patch(`/api/v1/estimates/${store.header.estimateId}/status`, { status: 'Submitted for Approval' });
+                    store.header.status = 'Submitted for Approval';
+                    store.markDirty();
+                    toast.add({ severity: 'success', summary: 'Submitted', detail: 'Estimate submitted for approval', life: 3000 });
+                } catch {
+                    toast.add({ severity: 'error', summary: 'Error', detail: 'Could not update status', life: 4000 });
+                }
+            },
+        });
+    } catch {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Submit for Approval failed', life: 4000 });
+    } finally {
+        submittingForApproval.value = false;
+    }
+}
+
 async function saveWithRevision() {
     showRevisionDialog.value = false;
     try {
@@ -536,8 +653,25 @@ async function saveWithRevision() {
         if (isNew.value) {
             router.replace(`/estimating/estimates/${store.header.estimateId}`);
         }
+        revisionDrawerRef.value?.loadRevisions();
     } catch (err: any) {
         toast.add({ severity: 'error', summary: 'Save Failed', detail: err?.response?.data?.message ?? 'An error occurred', life: 5000 });
+    }
+}
+
+// Called by RevisionDrawer's "+ Create Revision" — saves current unsaved state first, then snapshots
+async function onSaveAndCreate(description: string) {
+    try {
+        await store.saveEstimate(description || undefined);
+        if (isNew.value) {
+            router.replace(`/estimating/estimates/${store.header.estimateId}`);
+        }
+        toast.add({ severity: 'success', summary: 'Revision Created', detail: 'Estimate saved and revision snapshot created', life: 3000 });
+        await revisionDrawerRef.value?.loadRevisions();
+    } catch (err: any) {
+        toast.add({ severity: 'error', summary: 'Save Failed', detail: err?.response?.data?.message ?? 'An error occurred', life: 5000 });
+    } finally {
+        revisionDrawerRef.value?.clearSaving();
     }
 }
 </script>

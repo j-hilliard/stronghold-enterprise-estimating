@@ -36,6 +36,7 @@ public class EstimatesController : ControllerBase
         [FromQuery] string? client,
         [FromQuery] DateTime? startAfter,
         [FromQuery] DateTime? startBefore,
+        [FromQuery] int? year,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
         CancellationToken ct = default)
@@ -63,6 +64,9 @@ public class EstimatesController : ControllerBase
 
         if (startBefore.HasValue)
             q = q.Where(e => e.StartDate <= startBefore);
+
+        if (year.HasValue)
+            q = q.Where(e => e.StartDate.HasValue && e.StartDate.Value.Year == year.Value);
 
         var total = await q.CountAsync(ct);
 
@@ -482,9 +486,12 @@ public class EstimatesController : ControllerBase
             .FirstOrDefaultAsync(e => e.EstimateId == id && e.CompanyCode == CompanyCode, ct);
         if (estimate == null) return NotFound();
 
-        var validStatuses = new[] { "Draft", "Pending", "Submitted", "Awarded", "Lost", "Active", "Archived" };
+        var validStatuses = new[] { "Draft", "Pending", "Submitted", "Submitted for Approval", "Awarded", "Lost", "Active", "Archived" };
         if (!validStatuses.Contains(dto.Status))
             return BadRequest(new { message = $"Invalid status '{dto.Status}'. Valid: {string.Join(", ", validStatuses)}" });
+
+        if (dto.Status == "Lost" && string.IsNullOrWhiteSpace(dto.LostReason))
+            return BadRequest(new { message = "A lost reason is required when marking an estimate as Lost." });
 
         estimate.Status = dto.Status;
         if (!string.IsNullOrWhiteSpace(dto.LostReason))
@@ -501,7 +508,7 @@ public record EstimateUpsertDto(
     string? JobType, string? Branch, string? City, string? State, string? Site, string? JobLetter,
     string Shift, decimal HoursPerShift, int Days,
     DateTime? StartDate, DateTime? EndDate,
-    string OtMethod, bool DtWeekends,
+    string OtMethod, string DtWeekends,
     string? Status, decimal ConfidencePct, string? LostReason, string? LostNotes,
     bool IsScenario,
     int? StaffingPlanId,

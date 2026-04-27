@@ -138,7 +138,7 @@ public class AppDbContext : DbContext
             b.Property(e => e.EstimateNumber).IsRequired().HasMaxLength(50);
             b.Property(e => e.Name).IsRequired().HasMaxLength(200);
             b.Property(e => e.Client).IsRequired().HasMaxLength(200);
-            b.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            b.Property(e => e.Status).IsRequired().HasMaxLength(30);
             b.Property(e => e.Shift).IsRequired().HasMaxLength(10);
             b.Property(e => e.OtMethod).IsRequired().HasMaxLength(30);
             b.Property(e => e.ConfidencePct).HasPrecision(5, 2);

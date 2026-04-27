@@ -22,6 +22,9 @@ public class AiController : ControllerBase
     private string Username => User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
                             ?? User.FindFirst("username")?.Value ?? "unknown";
 
+    // Always derive company from the verified JWT claim — never trust the request body for this.
+    private string CompanyCode => User.FindFirst("company_code")?.Value ?? string.Empty;
+
     [HttpPost("chat")]
     public async Task<IActionResult> Chat(
         [FromBody] AiChatRequest request,
@@ -30,14 +33,18 @@ public class AiController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Message))
             return BadRequest(new { message = "Message is required." });
 
+        var companyCode = CompanyCode;
+        if (string.IsNullOrEmpty(companyCode))
+            return Unauthorized(new { message = "Company context missing from token." });
+
         try
         {
-            var result = await _ai.ChatAsync(request, Username, ct);
+            var result = await _ai.ChatAsync(request, Username, companyCode, ct);
             return Ok(result);
         }
-        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Groq API error"))
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("AI API error"))
         {
-            return StatusCode(502, new { message = "AI service error. Check your Groq API key in appsettings.json.", detail = ex.Message });
+            return StatusCode(502, new { message = "AI service error.", detail = ex.Message });
         }
     }
 

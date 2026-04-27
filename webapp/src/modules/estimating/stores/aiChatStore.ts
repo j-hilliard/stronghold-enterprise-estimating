@@ -22,6 +22,7 @@ export interface ChatMessage {
 export type AiAction =
     | { action: 'fill_header'; fields: Record<string, string | number | boolean> }
     | { action: 'add_labor_rows'; rows: Array<{ position: string; shift: string; qty: number }> }
+    | { action: 'add_expense'; expense_category: string; expense_description: string; expense_rate: number; expense_days_or_qty: number; expense_people: number; expense_billable: boolean; expense_type?: string }
     | { action: 'set_dates'; start_date?: string; end_date?: string; days?: number }
     | { action: 'load_rate_book'; rate_book_id: number; rate_book_name: string }
     | { action: 'suggest_rate_book'; nearest_rate_book_id: number; nearest_rate_book_name: string; similarity_reason: string; clone_suggested_name?: string }
@@ -70,6 +71,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
 
     const messages = ref<ChatMessage[]>([]);
     const isLoading = ref(false);
+    let _abortController: AbortController | null = null;
     const isOpen = ref(false);
     const pendingMessageIdx = ref<number | null>(null);
     const rateBookCache = ref<AiContext['availableRateBooks']>([]);
@@ -117,6 +119,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
 
         messages.value.push({ role: 'user', content: text, timestamp: new Date() });
         isLoading.value = true;
+        _abortController = new AbortController();
 
         try {
             const history = messages.value
@@ -128,7 +131,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
                 message: text,
                 history,
                 context: fullContext,
-            });
+            }, { signal: _abortController?.signal });
 
             const response: string = data.response ?? '';
             const rawActions: any[] = data.actions ?? [];
@@ -160,7 +163,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
                 pendingMessageIdx.value = messages.value.length - 1;
             }
         } catch (err: any) {
-            const detail = err?.response?.data?.message ?? 'AI service error. Check Groq API key.';
+            const detail = err?.response?.data?.message ?? 'AI service error. Please try again.';
             messages.value.push({
                 role: 'assistant',
                 content: `Error: ${detail}`,
@@ -366,6 +369,25 @@ export const useAiChatStore = defineStore('aiChat', () => {
                 if (!isStaffing) estimateStore.recalcSummary();
                 break;
             }
+            case 'add_expense': {
+                const days = action.expense_days_or_qty ?? estimateStore.header.days ?? 1;
+                const people = action.expense_people ?? 1;
+                const rate = action.expense_rate ?? 0;
+                estimateStore.expenseRows.push({
+                    category: action.expense_category ?? 'PerDiem',
+                    type: action.expense_type ?? 'Direct',
+                    description: action.expense_description ?? '',
+                    rate,
+                    unit: 'Day',
+                    daysOrQty: days,
+                    people,
+                    billable: action.expense_billable ?? true,
+                    subtotal: Math.round(rate * days * people * 100) / 100,
+                });
+                estimateStore.recalcSummary();
+                estimateStore.markDirty();
+                break;
+            }
             case 'load_rate_book': {
                 try { await estimateStore.loadRateBook(action.rate_book_id); } catch { /* ignore */ }
                 break;
@@ -406,6 +428,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
                         return `Set dates: ${a.start_date ?? '?'} → ${a.end_date ?? '?'} (${a.days ?? '?'} days)`;
                     case 'add_labor_rows':
                         return a.rows.map(r => `Add ${r.qty}× ${r.position} (${r.shift})`).join(', ');
+                    case 'add_expense':
+                        return `Add expense: ${a.expense_description} $${a.expense_rate}/day × ${a.expense_days_or_qty} days × ${a.expense_people} people`;
                     case 'load_rate_book':
                         return `Load rate book: ${a.rate_book_name}`;
                     case 'apply_template':
@@ -453,13 +477,25 @@ export const useAiChatStore = defineStore('aiChat', () => {
         }
     }
 
+    function cancelRequest() {
+        _abortController?.abort();
+        _abortController = null;
+        isLoading.value = false;
+        messages.value.push({
+            role: 'assistant',
+            content: 'Cancelled.',
+            timestamp: new Date(),
+            applied: true,
+        });
+    }
+
     return {
         messages, isLoading, isOpen, pendingMessageIdx, hasMessages, rateBookCache,
         appControlQueue, drainAppControlQueue,
         open, close, toggle, clearHistory,
         sendMessage, uploadRfq, applyActionsFromMessage, dismissActions,
         applyRateBookSuggestion, cloneRateBook, applyTemplate,
-        describeActions,
+        describeActions, cancelRequest,
     };
 });
 
@@ -467,7 +503,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
 
 function isValidAction(a: any): boolean {
     if (!a || typeof a !== 'object' || typeof a.action !== 'string') return false;
-    const valid = ['fill_header', 'add_labor_rows', 'set_dates', 'load_rate_book',
+    const valid = ['fill_header', 'add_labor_rows', 'add_expense', 'set_dates', 'load_rate_book',
         'suggest_rate_book', 'apply_template', 'ask_clarification', 'navigate',
         'rate_anomaly_warning', 'update_estimate_status', 'app_control'];
     return valid.includes(a.action);

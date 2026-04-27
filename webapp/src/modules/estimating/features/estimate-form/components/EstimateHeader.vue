@@ -17,15 +17,15 @@
         <div class="hrow">
             <div class="hfield" style="flex:3">
                 <label>JOB NAME *</label>
-                <InputText v-model="form.name" placeholder="Enter job name..." class="w-full" @input="emit" />
+                <InputText v-model="form.name" placeholder="Enter job name..." class="w-full" data-testid="est-name" @input="emit" />
             </div>
             <div class="hfield" style="flex:2.5">
                 <label>CLIENT *</label>
-                <InputText v-model="form.client" placeholder="Client company..." class="w-full" @input="emit" @blur="onClientBlur" />
+                <InputText v-model="form.client" placeholder="Client company..." class="w-full" data-testid="est-client" @input="emit" @blur="onClientBlur" />
             </div>
             <div class="hfield" style="flex:1">
                 <label>CLIENT CODE</label>
-                <InputText v-model="form.clientCode" placeholder="BP" maxlength="10" class="w-full" @input="emit" />
+                <InputText v-model="form.clientCode" placeholder="e.g. SHELL" maxlength="10" class="w-full" data-testid="est-client-code" @input="emit" />
             </div>
             <div class="hfield" style="flex:1.5">
                 <label>JOB TYPE</label>
@@ -63,11 +63,11 @@
             </div>
             <div class="hfield" style="flex:2">
                 <label>CITY</label>
-                <InputText v-model="form.city" placeholder="City..." class="w-full" @input="emit" />
+                <InputText v-model="form.city" placeholder="City..." class="w-full" data-testid="est-city" @input="emit" />
             </div>
             <div class="hfield" style="flex:0.7">
                 <label>STATE</label>
-                <InputText v-model="form.state" placeholder="--" maxlength="2" class="w-full" @input="emit" />
+                <InputText v-model="form.state" placeholder="--" maxlength="2" class="w-full" data-testid="est-state" @input="emit" />
             </div>
             <div class="hfield" style="flex:2">
                 <label>SITE / FACILITY</label>
@@ -75,11 +75,11 @@
             </div>
             <div class="hfield" style="flex:1.3">
                 <label>START DATE</label>
-                <InputText v-model="form.startDate" type="date" class="w-full" @input="onDatesChange" />
+                <InputText v-model="form.startDate" type="date" class="w-full" data-testid="est-start-date" @input="onDatesChange" />
             </div>
             <div class="hfield" style="flex:1.3">
                 <label>END DATE</label>
-                <InputText v-model="form.endDate" type="date" class="w-full" @input="onDatesChange" />
+                <InputText v-model="form.endDate" type="date" class="w-full" data-testid="est-end-date" @input="onDatesChange" />
             </div>
             <div class="hfield" style="flex:0.6">
                 <label>DAYS</label>
@@ -120,10 +120,6 @@
             <div class="hfield" style="flex:0.8">
                 <label>DT W/E</label>
                 <Dropdown v-model="form.dtWeekends" :options="dtWeekendsOptions" optionLabel="label" optionValue="value" class="w-full" @change="emit" />
-            </div>
-            <div class="hfield" style="flex:1.2">
-                <label>STATUS</label>
-                <Dropdown v-model="form.status" :options="statusOptions" class="w-full" @change="onStatusChange" />
             </div>
             <div class="hfield" style="flex:1">
                 <label>CONFIDENCE (0-100)</label>
@@ -214,18 +210,7 @@ function onClientBlur() {
 const showLostDialog = ref(false);
 const lostReasonDraft = ref('');
 const lostNotesDraft = ref('');
-let prevStatus = '';
 
-function onStatusChange() {
-    if (form.status === 'Lost' && !form.lostReason) {
-        prevStatus = form.status;
-        lostReasonDraft.value = form.lostReason ?? '';
-        lostNotesDraft.value = (form as any).lostNotes ?? '';
-        showLostDialog.value = true;
-    } else {
-        emit();
-    }
-}
 
 function confirmLostDialog() {
     form.lostReason = lostReasonDraft.value;
@@ -237,11 +222,9 @@ function confirmLostDialog() {
 }
 
 function cancelLostDialog() {
-    form.status = prevStatus || 'Draft';
     showLostDialog.value = false;
     lostReasonDraft.value = '';
     lostNotesDraft.value = '';
-    emit();
 }
 
 const lostReasonOptions = ['Pricing', 'Scope', 'Competitor', 'No Decision', 'Other'];
@@ -257,7 +240,7 @@ function onDatesChange() {
 }
 
 function statusSeverity(status: string) {
-    const map: Record<string, string> = { Draft: '', Pending: 'warning', Awarded: 'success', Lost: 'danger', Canceled: 'warning' };
+    const map: Record<string, string> = { Draft: '', 'Submitted for Approval': 'info', Pending: 'warning', Awarded: 'success', Lost: 'danger', Canceled: 'warning' };
     return map[status] ?? '';
 }
 
@@ -265,10 +248,10 @@ const vpOptions     = ['David Torres', 'Mark Ellis', 'Mike Rodriguez', 'Carlos V
 const regionOptions = ['Gulf', 'West', 'South TX', 'Mid-Continent', 'Southeast', 'Northeast'];
 const jobTypeOptions = ['Lump Sum', 'T&M', 'Maintenance', 'Installation', 'Consulting', 'Repair', 'Other'];
 const shiftOptions = ['Day', 'Night', 'Both'];
-const statusOptions = ['Draft', 'Pending', 'Awarded', 'Lost', 'Canceled'];
 const dtWeekendsOptions = [
-    { label: 'No', value: false },
-    { label: 'Yes', value: true },
+    { label: 'No DT Weekends', value: 'none' },
+    { label: 'Sundays Only',   value: 'sun_only' },
+    { label: 'Sat & Sun',      value: 'sat_sun' },
 ];
 const otMethodOptions = [
     { label: 'Daily 8 + Weekly 40', value: 'daily8_weekly40' },

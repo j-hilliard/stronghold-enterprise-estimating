@@ -15,15 +15,6 @@
                     data-testid="mp-export-csv"
                     @click="exportCsv"
                 />
-                <Button
-                    label="Export PNG"
-                    icon="pi pi-image"
-                    severity="secondary"
-                    size="small"
-                    :disabled="!hasRun"
-                    data-testid="mp-export-png"
-                    @click="exportPng"
-                />
                 <RouterLink to="/estimating/analytics/revenue">
                     <Button label="Reports" icon="pi pi-chart-bar" severity="secondary" size="small" />
                 </RouterLink>
@@ -61,6 +52,20 @@
                         optionValue="value"
                         class="ctrl-input"
                         data-testid="mp-status-filter"
+                    />
+                </div>
+                <div class="field-col">
+                    <label class="field-label">POSITION FILTER</label>
+                    <Dropdown
+                        v-model="selectedPosition"
+                        :options="positionFilterOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        showClear
+                        placeholder="All Positions"
+                        class="ctrl-input"
+                        data-testid="mp-position-filter"
+                        :disabled="!hasRun"
                     />
                 </div>
                 <div class="field-col">
@@ -127,9 +132,11 @@
         <div class="section-card" data-testid="mp-position-breakdown">
             <div class="section-header">
                 <span class="section-title">POSITION BREAKDOWN</span>
-                <span class="section-badge">{{ pivotPositions.length }} positions</span>
-                <button v-if="pivotPositions.length > 0" class="show-all-btn" @click="showAllPositions = !showAllPositions">
-                    {{ showAllPositions ? `Hide Extra (${pivotPositions.length})` : `Show All (${pivotPositions.length})` }}
+                <span class="section-badge">
+                    {{ selectedPosition ? `1 of ${pivotPositions.length}` : pivotPositions.length }} position{{ pivotPositions.length !== 1 ? 's' : '' }}
+                </span>
+                <button v-if="filteredPivotPositions.length > 10" class="show-all-btn" @click="showAllPositions = !showAllPositions">
+                    {{ showAllPositions ? `Hide Extra (${filteredPivotPositions.length})` : `Show All (${filteredPivotPositions.length})` }}
                     <i :class="showAllPositions ? 'pi pi-angle-up' : 'pi pi-angle-down'" />
                 </button>
             </div>
@@ -204,9 +211,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { useToast } from 'primevue/usetoast';
 import BasePageHeader from '@/components/layout/BasePageHeader.vue';
 import { useApiStore } from '@/stores/apiStore';
 import type { EstimateListItem, StaffingListItem } from '@/modules/estimating/features/analytics/utils/forecast';
@@ -244,7 +250,6 @@ type PositionMode = 'all' | 'direct';
 // ── Store / composables ────────────────────────────────────────────────────────
 
 const apiStore = useApiStore();
-const toast = useToast();
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
@@ -260,6 +265,7 @@ const includeMode = ref<IncludeMode>('plans+estimates');
 const statusFilter = ref<StatusFilter>('all-active');
 const positionMode = ref<PositionMode>('all');
 const showAllPositions = ref(false);
+const selectedPosition = ref<string | null>(null);
 
 const includeModeOptions: { label: string; value: IncludeMode }[] = [
     { label: 'Plans + Estimates', value: 'plans+estimates' },
@@ -363,6 +369,8 @@ async function runForecast() {
     hasRun.value = true;
 }
 
+onMounted(() => runForecast());
+
 // ── Computed options from filter state ────────────────────────────────────────
 
 const includePendingEstimates = computed(() =>
@@ -392,8 +400,10 @@ const demand = computed(() =>
         {
             fromDate: fromDate.value,
             toDate: toDate.value,
-            includePendingEstimates: includePendingEstimates.value,
+            includePendingEstimates: statusFilter.value !== 'awarded-only' && includePendingEstimates.value,
             includeStaffingPlans: includeStaffingPlans.value,
+            awardedOnly: statusFilter.value === 'awarded-only',
+            directOnly: positionMode.value === 'direct',
         },
     ),
 );
@@ -466,9 +476,19 @@ const pivotPositions = computed((): string[] => {
     return [...set].sort((a, b) => a.localeCompare(b));
 });
 
+const positionFilterOptions = computed(() =>
+    pivotPositions.value.map(p => ({ label: p, value: p })),
+);
+
+/** pivotPositions filtered by the position dropdown (null = all) */
+const filteredPivotPositions = computed((): string[] => {
+    if (!selectedPosition.value) return pivotPositions.value;
+    return pivotPositions.value.filter(p => p === selectedPosition.value);
+});
+
 /** Positions visible in the table (collapsed to first 10 unless showAll) */
 const visiblePositions = computed((): string[] => {
-    const positions = pivotPositions.value;
+    const positions = filteredPivotPositions.value;
     if (showAllPositions.value || positions.length <= 10) return positions;
     return positions.slice(0, 10);
 });
@@ -489,7 +509,7 @@ function pivotCell(craft: string, monthKey: string): number {
 
 function pivotMonthTotal(monthKey: string): number {
     let total = 0;
-    for (const craft of pivotPositions.value) {
+    for (const craft of filteredPivotPositions.value) {
         total += pivotCell(craft, monthKey);
     }
     return round2(total);
@@ -626,7 +646,7 @@ function exportCsv() {
         const peak = posPeak(pos);
         return [
             pos,
-            '0',
+            fmtNumber(posCurrent(pos)),
             ...pivotMonthKeys.value.map(mk => String(pivotCell(pos, mk) || '')),
             fmtSigned(posEndGap(pos)),
             `${fmtNumber(peak.value)} (${peak.label})`,
@@ -654,10 +674,6 @@ function exportCsv() {
     link.download = 'manpower-forecast.csv';
     link.click();
     URL.revokeObjectURL(url);
-}
-
-function exportPng() {
-    toast.add({ severity: 'info', summary: 'Export PNG', detail: 'PNG export coming soon', life: 3000 });
 }
 </script>
 

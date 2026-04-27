@@ -56,6 +56,14 @@
         </div>
 
         <template v-else>
+            <!-- NeedsReview banner -->
+            <div v-if="reviewCount > 0" class="review-banner">
+                <i class="pi pi-exclamation-triangle" />
+                <span><strong>{{ reviewCount }} position{{ reviewCount > 1 ? 's' : '' }} need cost rates set.</strong>
+                These were auto-added from a rate book at 100% of bill rate — you are currently making $0 margin on them.
+                Click the pencil icon on each flagged row to set your actual pay rate.</span>
+            </div>
+
             <!-- Stats bar -->
             <div class="stats-bar">
                 <div class="stat-chip">
@@ -157,10 +165,14 @@
                                         v-for="(row, idx) in laborByType(ltype)"
                                         :key="idx"
                                         class="data-row"
+                                        :class="{ 'needs-review-row': row.needsReview }"
                                     >
                                         <td class="code-cell">{{ row.navCode || '—' }}</td>
                                         <td class="code-cell">{{ row.craftCode || '—' }}</td>
-                                        <td class="font-medium">{{ row.position }}</td>
+                                        <td class="font-medium">
+                                            {{ row.position }}
+                                            <span v-if="row.needsReview" class="review-flag" title="Cost rate was auto-copied from rate book (100% of bill rate = 0% margin). Edit to set your actual pay rate.">⚠ SET COST RATE</span>
+                                        </td>
                                         <td>
                                             <Tag
                                                 :value="row.laborType"
@@ -474,6 +486,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useApiStore } from '@/stores/apiStore';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import ConfirmDialog from 'primevue/confirmdialog';
 import BasePageHeader from '@/components/layout/BasePageHeader.vue';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -494,6 +507,7 @@ interface LaborRate {
     stRate: number;
     otRate: number;
     dtRate: number;
+    needsReview?: boolean;
 }
 
 interface EquipmentRate {
@@ -602,6 +616,10 @@ function groupSubtotalLabel(items: OverheadItem[]): string {
 function laborByType(type: string): LaborRate[] {
     return (costBook.value?.laborRates ?? []).filter(r => r.laborType === type);
 }
+
+const reviewCount = computed(() =>
+    (costBook.value?.laborRates ?? []).filter(r => r.needsReview).length
+);
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 
@@ -734,10 +752,12 @@ function editLabor(row: LaborRate) {
 function applyLabor() {
     const d = laborDlg.value.data;
     if (!d.position.trim()) return;
+    // When user explicitly saves a rate, clear the NeedsReview flag
+    const row = { ...d, needsReview: false };
     if (laborDlg.value.isNew) {
-        costBook.value!.laborRates.push({ ...d });
+        costBook.value!.laborRates.push(row);
     } else {
-        costBook.value!.laborRates[laborDlg.value.idx] = { ...d };
+        costBook.value!.laborRates[laborDlg.value.idx] = row;
     }
     laborDlg.value.visible = false;
     dirty.value = true;
@@ -1154,6 +1174,35 @@ function fmtDate(d?: string): string {
 }
 
 .data-row:hover td { background: var(--surface-hover); }
+
+.needs-review-row td { background: rgba(234, 179, 8, 0.08); }
+.needs-review-row:hover td { background: rgba(234, 179, 8, 0.15); }
+.review-flag {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 3px;
+    padding: 1px 5px;
+    cursor: help;
+}
+
+.review-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: rgba(234, 179, 8, 0.12);
+    border: 1px solid rgba(234, 179, 8, 0.5);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+    color: var(--text-color);
+}
+.review-banner .pi { color: #f59e0b; margin-top: 2px; flex-shrink: 0; }
 
 .code-cell {
     font-family: monospace;

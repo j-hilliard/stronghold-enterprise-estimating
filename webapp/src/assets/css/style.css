@@ -283,19 +283,88 @@ html[data-theme="light"] .app-shell-table {
 }
 
 html[data-theme="light"] .p-dialog {
-    background: #ffffff;
-    border: 1px solid var(--shell-border);
+    background: #ffffff !important;
+    border: 1px solid var(--shell-border) !important;
 }
 
 html[data-theme="light"] .p-dialog-header {
-    background: #f5f9ff;
-    color: var(--shell-text);
-    border-bottom: 1px solid var(--shell-border);
+    background: #f5f9ff !important;
+    color: var(--shell-text) !important;
+    border-bottom: 1px solid var(--shell-border) !important;
+}
+
+/* Dialog title text and close (X) button must be dark in light mode */
+html[data-theme="light"] .p-dialog-header .p-dialog-title {
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .p-dialog-header .p-dialog-header-icon,
+html[data-theme="light"] .p-dialog-header .p-dialog-header-close {
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .p-dialog-header .p-dialog-header-icon:hover,
+html[data-theme="light"] .p-dialog-header .p-dialog-header-close:hover {
+    background: rgba(0, 0, 0, 0.07) !important;
+    color: var(--shell-text) !important;
+}
+
+/* Dialog content area: theme.css hardcodes dark bg; must override for light mode */
+html[data-theme="light"] .p-dialog-content {
+    background: #ffffff !important;
+    color: var(--shell-text) !important;
 }
 
 html[data-theme="light"] .p-dialog-footer {
-    background: #f5f9ff;
-    border-top: 1px solid var(--shell-border);
+    background: #f5f9ff !important;
+    border-top: 1px solid var(--shell-border) !important;
+}
+
+/* "No rate book" warning box inside dialogs */
+html[data-theme="light"] .no-rates-msg {
+    background: rgba(251, 146, 60, 0.10) !important;
+    border-color: rgba(251, 146, 60, 0.35) !important;
+    color: #7c3d00 !important;
+}
+
+/* Crew template / rate book picker list in dialogs */
+html[data-theme="light"] .rate-book-picker-list,
+html[data-theme="light"] .position-list {
+    background: #ffffff !important;
+    border-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .rb-row,
+html[data-theme="light"] .position-row {
+    background: #ffffff !important;
+    border-bottom-color: var(--shell-border) !important;
+}
+
+html[data-theme="light"] .rb-row:hover,
+html[data-theme="light"] .position-row:hover {
+    background: #dce8fb !important;
+}
+
+html[data-theme="light"] .rb-row.rb-active {
+    background: rgba(37, 99, 235, 0.08) !important;
+}
+
+html[data-theme="light"] .rb-name {
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .rb-meta {
+    color: var(--shell-text-muted) !important;
+}
+
+/* Position rate in Add Employee dialog (bright green is dark-only) */
+html[data-theme="light"] .position-rate {
+    color: #15803d !important;
+}
+
+/* Position name in Add Employee dialog */
+html[data-theme="light"] .position-name {
+    color: var(--shell-text) !important;
 }
 
 html[data-theme="light"] .p-datatable .p-datatable-header {
@@ -443,7 +512,15 @@ html[data-theme="light"] .text-slate-400 {
     color: var(--shell-text-muted) !important;
 }
 
+/* text-white in light mode content areas must be dark; topbar/sidebar stay navy so they keep white */
 html[data-theme="light"] .text-white {
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .app-shell-topbar .text-white,
+html[data-theme="light"] .app-shell-sidebar .text-white,
+html[data-theme="light"] .layout-sidebar .text-white,
+html[data-theme="light"] .layout-menu .text-white {
     color: #ffffff !important;
 }
 
@@ -579,4 +656,105 @@ html[data-theme="light"] .layout-menu .layout-menuitem-root-text,
 html[data-theme="light"] .layout-menu .layout-menuitem a {
     background-color: var(--shell-sidebar) !important;
     color: rgba(255,255,255,0.85) !important;
+}
+
+/* ── Button contrast in light mode ─────────────────────────────────────────── */
+
+/* Secondary / text buttons */
+html[data-theme="light"] .p-button.p-button-secondary,
+html[data-theme="light"] .p-button.p-button-secondary:not(:disabled):hover {
+    background: #e8f0fb !important;
+    color: var(--shell-text) !important;
+    border-color: var(--shell-border) !important;
+}
+
+/* Outlined buttons */
+html[data-theme="light"] .p-button.p-button-outlined {
+    background: transparent !important;
+    color: #1d4ed8 !important;
+    border-color: #1d4ed8 !important;
+}
+
+html[data-theme="light"] .p-button.p-button-outlined:not(:disabled):hover {
+    background: rgba(29, 78, 216, 0.08) !important;
+}
+
+/* Text-only buttons */
+html[data-theme="light"] .p-button.p-button-text {
+    color: #1d4ed8 !important;
+}
+
+html[data-theme="light"] .p-button.p-button-text:not(:disabled):hover {
+    background: rgba(29, 78, 216, 0.08) !important;
+}
+
+/* Danger outlined */
+html[data-theme="light"] .p-button.p-button-danger.p-button-outlined {
+    color: #b91c1c !important;
+    border-color: #b91c1c !important;
+}
+
+/* Disabled buttons need visible but muted appearance */
+html[data-theme="light"] .p-button:disabled,
+html[data-theme="light"] .p-button.p-disabled {
+    opacity: 0.5 !important;
+    background: #d1dff0 !important;
+    color: #4a6080 !important;
+    border-color: #bdd0ea !important;
+}
+
+/* Chip contrast */
+html[data-theme="light"] .p-chip {
+    background: #e8f0fb !important;
+    color: var(--shell-text) !important;
+}
+
+/* Badge contrast */
+html[data-theme="light"] .p-badge {
+    color: #ffffff !important;
+}
+
+/* Tag/badge text within light cards */
+html[data-theme="light"] .text-blue-400 {
+    color: #1d4ed8 !important;
+}
+
+html[data-theme="light"] .text-green-400 {
+    color: #15803d !important;
+}
+
+html[data-theme="light"] .text-yellow-400 {
+    color: #a16207 !important;
+}
+
+html[data-theme="light"] .text-red-400 {
+    color: #b91c1c !important;
+}
+
+html[data-theme="light"] .text-purple-400 {
+    color: #7e22ce !important;
+}
+
+/* KPI value text on card */
+html[data-theme="light"] .text-blue-300,
+html[data-theme="light"] .text-emerald-300,
+html[data-theme="light"] .text-violet-300,
+html[data-theme="light"] .text-amber-300 {
+    color: var(--shell-text) !important;
+}
+
+/* Menu / OverlayPanel contrast */
+html[data-theme="light"] .p-menu,
+html[data-theme="light"] .p-overlaypanel {
+    background: #ffffff !important;
+    border-color: var(--shell-border) !important;
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .p-menuitem-link {
+    color: var(--shell-text) !important;
+}
+
+html[data-theme="light"] .p-menuitem-link:hover {
+    background: #dce8fb !important;
 }

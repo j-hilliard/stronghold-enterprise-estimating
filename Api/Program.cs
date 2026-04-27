@@ -83,7 +83,19 @@ builder.Services.AddHttpClient("groq", client =>
     var apiKey = builder.Configuration["Ai:GroqApiKey"] ?? "";
     if (!string.IsNullOrEmpty(apiKey))
         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-    client.Timeout = TimeSpan.FromSeconds(30);
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
+
+// Azure AI Foundry HTTP client
+builder.Services.AddHttpClient("azure-ai", client =>
+{
+    var endpoint = builder.Configuration["Ai:AzureFoundryEndpoint"] ?? "";
+    if (!string.IsNullOrEmpty(endpoint))
+        client.BaseAddress = new Uri(endpoint.TrimEnd('/') + "/");
+    var apiKey = builder.Configuration["Ai:AzureFoundryKey"] ?? "";
+    if (!string.IsNullOrEmpty(apiKey))
+        client.DefaultRequestHeaders.Add("api-key", apiKey);
+    client.Timeout = TimeSpan.FromSeconds(120);
 });
 
 // Versioning

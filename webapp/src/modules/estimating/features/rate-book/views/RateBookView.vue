@@ -21,8 +21,6 @@
                         data-testid="rb-new-btn"
                         @click="createNewBook"
                     />
-                    <Button label="Import" size="small" outlined severity="secondary" @click="stubImport" />
-                    <Button label="Export" size="small" outlined severity="secondary" @click="stubExport" />
                 </div>
             </div>
 
@@ -136,6 +134,32 @@
                             <template v-if="book.city || book.state">
                                 &mdash; {{ locationLabel }}
                             </template>
+                        </div>
+                        <!-- Client / Client Code / Location -->
+                        <div class="rb-book-meta-row">
+                            <div class="rb-meta-field">
+                                <span class="rb-date-label">Client</span>
+                                <InputText v-model="book.client" placeholder="e.g. Shell Oil Company" class="rb-meta-input" data-testid="rb-client" @input="markDirty" />
+                            </div>
+                            <div class="rb-meta-field">
+                                <span class="rb-date-label">Client Code</span>
+                                <InputText
+                                    :model-value="book.clientCode ?? ''"
+                                    placeholder="e.g. SHELL"
+                                    class="rb-meta-input rb-meta-input--short"
+                                    style="text-transform:uppercase"
+                                    data-testid="rb-client-code"
+                                    @input="(e: Event) => { if(book) book.clientCode = (e.target as HTMLInputElement).value.toUpperCase(); markDirty(); }"
+                                />
+                            </div>
+                            <div class="rb-meta-field">
+                                <span class="rb-date-label">City</span>
+                                <InputText v-model="book.city" placeholder="City" class="rb-meta-input" data-testid="rb-city" @input="markDirty" />
+                            </div>
+                            <div class="rb-meta-field">
+                                <span class="rb-date-label">State</span>
+                                <InputText v-model="book.state" placeholder="TX" maxlength="2" class="rb-meta-input rb-meta-input--xs" data-testid="rb-state" @input="markDirty" />
+                            </div>
                         </div>
                         <div class="rb-book-dates">
                             <div class="rb-date-field">
@@ -1116,13 +1140,6 @@ function deleteExpenseRow(row: ExpenseItem) {
 
 // ─── Stubs ────────────────────────────────────────────────────────────────────
 
-function stubImport() {
-    toast.add({ severity: 'info', summary: 'Import', detail: 'Import not yet implemented', life: 2000 });
-}
-
-function stubExport() {
-    toast.add({ severity: 'info', summary: 'Export', detail: 'Export not yet implemented', life: 2000 });
-}
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
@@ -1405,6 +1422,32 @@ onMounted(async () => {
 .rb-book-subtitle {
     font-size: 0.75rem;
     color: var(--text-color-secondary);
+}
+
+.rb-book-meta-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+    align-items: flex-end;
+}
+
+.rb-meta-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.rb-meta-input {
+    width: 180px;
+}
+
+.rb-meta-input--short {
+    width: 100px;
+}
+
+.rb-meta-input--xs {
+    width: 60px;
 }
 
 .rb-book-dates {

@@ -1,31 +1,27 @@
 <template>
     <Card class="labor-grid-card" data-testid="labor-grid">
         <template #title>
-            <div class="flex align-items-center justify-content-between gap-2">
-                <div class="flex align-items-center gap-2">
-                    <i class="pi pi-users text-primary" />
-                    <span>Labor</span>
-                    <Tag :value="`${rows.length} row${rows.length !== 1 ? 's' : ''}`" severity="secondary" />
-                </div>
-                <div class="flex gap-2">
-                    <Button
-                        label="Load Crew"
-                        icon="pi pi-users"
-                        size="small"
-                        outlined
-                        severity="secondary"
-                        data-testid="labor-load-crew"
-                        @click="$emit('loadCrew')"
-                    />
-                    <Button
-                        label="+ Add Employee"
-                        icon="pi pi-plus"
-                        size="small"
-                        outlined
-                        data-testid="labor-add-row"
-                        @click="openAddDialog"
-                    />
-                </div>
+            <div class="flex align-items-center gap-2">
+                <i class="pi pi-users text-primary" />
+                <span>Labor</span>
+                <Tag :value="`${rows.length} row${rows.length !== 1 ? 's' : ''}`" severity="secondary" />
+                <Button
+                    label="Load Crew"
+                    icon="pi pi-users"
+                    size="small"
+                    outlined
+                    severity="secondary"
+                    data-testid="labor-load-crew"
+                    @click="$emit('loadCrew')"
+                />
+                <Button
+                    label="+ Add Employee"
+                    icon="pi pi-plus"
+                    size="small"
+                    outlined
+                    data-testid="labor-add-row"
+                    @click="openAddDialog"
+                />
             </div>
         </template>
         <template #content>
@@ -41,6 +37,16 @@
                     text
                     class="rate-book-btn"
                     @click="$emit('openRateBook')"
+                />
+                <Button
+                    v-if="rateBookName"
+                    label="Re-apply Rates"
+                    icon="pi pi-refresh"
+                    size="small"
+                    text
+                    severity="secondary"
+                    title="Re-apply rate book rates to all rows"
+                    @click="$emit('applyRates')"
                 />
                 <Button
                     v-if="rateBookName"
@@ -69,35 +75,35 @@
                 <table class="labor-table w-full" data-testid="labor-table">
                     <thead>
                         <tr>
-                            <th class="col-position">Position</th>
-                            <th class="col-type">Type</th>
-                            <th class="col-shift">Shift</th>
-                            <th class="col-rate col-st">ST Rate</th>
-                            <th class="col-rate col-ot">OT Rate</th>
-                            <th class="col-rate col-dt">DT Rate</th>
+                            <th class="col-position sl-0">Position</th>
+                            <th class="col-type sl-140">Type</th>
+                            <th class="col-shift sl-212">Shift</th>
+                            <th :class="['col-rate col-st', !isAllView && 'sl-258']">ST Rate</th>
+                            <th :class="['col-rate col-ot', !isAllView && 'sl-330']">OT Rate</th>
+                            <th :class="['col-rate col-dt', !isAllView && 'sl-402']">DT Rate</th>
                             <th
                                 v-for="d in visibleDates"
                                 :key="d.iso"
                                 class="col-day"
-                                :class="{ 'day-weekend': d.isSunday || d.isSaturday, 'day-sunday': d.isSunday }"
+                                :class="{ 'day-weekend': d.isSunday || d.isSaturday, 'day-sunday': d.isSunday, 'day-out-of-range': d.isOutOfRange }"
                                 :title="d.iso"
                             >
                                 <div class="text-xs">{{ d.label }}</div>
                                 <div class="text-xs opacity-60">{{ d.dow }}</div>
                             </th>
-                            <th class="col-hours col-st">ST</th>
-                            <th class="col-hours col-ot">OT</th>
-                            <th class="col-hours col-dt">DT</th>
-                            <th class="col-money col-st">ST $</th>
-                            <th class="col-money col-ot">OT $</th>
-                            <th class="col-money col-dt">DT $</th>
-                            <th class="col-total">TOTAL</th>
-                            <th class="col-del"></th>
+                            <th :class="['col-hours col-st', isAllView ? 'sr-all-st-hours' : 'sr-456']">ST</th>
+                            <th :class="['col-hours col-ot', isAllView ? 'sr-all-ot-hours' : 'sr-400']">OT</th>
+                            <th :class="['col-hours col-dt', isAllView ? 'sr-all-dt-hours' : 'sr-344']">DT</th>
+                            <th :class="['col-money col-st', isAllView ? 'sr-all-st-money' : 'sr-256']">ST $</th>
+                            <th :class="['col-money col-ot', isAllView ? 'sr-all-ot-money' : 'sr-168']">OT $</th>
+                            <th :class="['col-money col-dt', isAllView ? 'sr-all-dt-money' : 'sr-80']">DT $</th>
+                            <th :class="['col-total', isAllView ? 'sr-all-total' : 'sr-36']">TOTAL</th>
+                            <th :class="['col-del', !isAllView && 'sr-0']"></th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="(row, idx) in rows" :key="idx">
-                            <td class="col-position">
+                            <td class="col-position sl-0">
                                 <InputText
                                     v-model="row.position"
                                     placeholder="Pipefitter"
@@ -106,50 +112,51 @@
                                     @input="onRowChange(idx)"
                                 />
                             </td>
-                            <td class="col-type">
+                            <td class="col-type sl-140">
                                 <Tag
                                     :value="row.laborType || 'Direct'"
                                     :severity="row.laborType === 'Indirect' ? 'secondary' : 'info'"
                                     class="type-tag"
                                 />
                             </td>
-                            <td class="col-shift text-center">
+                            <td class="col-shift text-center sl-212">
                                 <span class="shift-badge" :class="`shift-${row.shift?.toLowerCase()}`">
                                     {{ row.shift === 'Both' ? 'D/N' : row.shift?.[0] ?? 'D' }}
                                 </span>
                             </td>
-                            <td class="col-rate text-right col-st">
+                            <td :class="['col-rate text-right col-st', !isAllView && 'sl-258']">
                                 <span class="rate-display">{{ fmtRate(row.billStRate) }}</span>
                             </td>
-                            <td class="col-rate text-right col-ot">
+                            <td :class="['col-rate text-right col-ot', !isAllView && 'sl-330']">
                                 <span class="rate-display">{{ fmtRate(row.billOtRate) }}</span>
                             </td>
-                            <td class="col-rate text-right col-dt">
+                            <td :class="['col-rate text-right col-dt', !isAllView && 'sl-402']">
                                 <span class="rate-display">{{ fmtRate(row.billDtRate) }}</span>
                             </td>
                             <td
                                 v-for="d in visibleDates"
                                 :key="d.iso"
                                 class="col-day"
-                                :class="{ 'day-weekend': d.isSunday || d.isSaturday, 'day-sunday': d.isSunday }"
+                                :class="{ 'day-weekend': d.isSunday || d.isSaturday, 'day-sunday': d.isSunday, 'day-out-of-range': d.isOutOfRange }"
                             >
-                                <InputNumber
-                                    :modelValue="getHeadcount(row, d.iso)"
-                                    @update:modelValue="v => setHeadcount(row, idx, d.iso, v ?? 0)"
-                                    :min="0"
-                                    :max="99"
-                                    class="w-full cell-headcount"
-                                    inputClass="text-center"
+                                <input
+                                    type="number"
+                                    :value="getHeadcount(row, d.iso)"
+                                    @change="(e) => setHeadcount(row, idx, d.iso, Math.max(0, Math.min(99, Number((e.target as HTMLInputElement).value) || 0)))"
+                                    min="0"
+                                    max="99"
+                                    :disabled="d.isOutOfRange"
+                                    class="cell-headcount-native"
                                 />
                             </td>
-                            <td class="col-hours text-right col-st">{{ fmt(row.stHours) }}</td>
-                            <td class="col-hours text-right col-ot">{{ fmt(row.otHours) }}</td>
-                            <td class="col-hours text-right col-dt">{{ fmt(row.dtHours) }}</td>
-                            <td class="col-money text-right col-st">{{ fmtCurrency(row.stHours * row.billStRate) }}</td>
-                            <td class="col-money text-right col-ot">{{ fmtCurrency(row.otHours * row.billOtRate) }}</td>
-                            <td class="col-money text-right col-dt">{{ fmtCurrency(row.dtHours * row.billDtRate) }}</td>
-                            <td class="col-total text-right font-semibold">{{ fmtCurrency(row.subtotal) }}</td>
-                            <td class="col-del">
+                            <td :class="['col-hours text-right col-st', isAllView ? 'sr-all-st-hours' : 'sr-456']">{{ fmt(row.stHours) }}</td>
+                            <td :class="['col-hours text-right col-ot', isAllView ? 'sr-all-ot-hours' : 'sr-400']">{{ fmt(row.otHours) }}</td>
+                            <td :class="['col-hours text-right col-dt', isAllView ? 'sr-all-dt-hours' : 'sr-344']">{{ fmt(row.dtHours) }}</td>
+                            <td :class="['col-money text-right col-st', isAllView ? 'sr-all-st-money' : 'sr-256']">{{ fmtCurrency(row.stHours * row.billStRate) }}</td>
+                            <td :class="['col-money text-right col-ot', isAllView ? 'sr-all-ot-money' : 'sr-168']">{{ fmtCurrency(row.otHours * row.billOtRate) }}</td>
+                            <td :class="['col-money text-right col-dt', isAllView ? 'sr-all-dt-money' : 'sr-80']">{{ fmtCurrency(row.dtHours * row.billDtRate) }}</td>
+                            <td :class="['col-total text-right font-semibold', isAllView ? 'sr-all-total' : 'sr-36']">{{ fmtCurrency(row.subtotal) }}</td>
+                            <td :class="['col-del', !isAllView && 'sr-0']">
                                 <Button
                                     icon="pi pi-trash"
                                     text
@@ -164,15 +171,21 @@
                     </tbody>
                     <tfoot v-if="rows.length > 0">
                         <tr class="totals-row">
-                            <td :colspan="6 + visibleDates.length" class="text-right font-semibold pr-3 text-sm">TOTAL</td>
-                            <td class="col-hours text-right font-bold col-st">{{ fmt(totalSt) }}</td>
-                            <td class="col-hours text-right font-bold col-ot">{{ fmt(totalOt) }}</td>
-                            <td class="col-hours text-right font-bold col-dt">{{ fmt(totalDt) }}</td>
-                            <td class="col-money text-right font-bold col-st">{{ fmtCurrency(totalStAmt) }}</td>
-                            <td class="col-money text-right font-bold col-ot">{{ fmtCurrency(totalOtAmt) }}</td>
-                            <td class="col-money text-right font-bold col-dt">{{ fmtCurrency(totalDtAmt) }}</td>
-                            <td class="col-total text-right font-bold total-grand">{{ fmtCurrency(laborTotal) }}</td>
-                            <td></td>
+                            <td class="col-position sl-0 totals-label text-right font-semibold text-sm">TOTAL</td>
+                            <td class="col-type totals-label sl-140"></td>
+                            <td class="col-shift totals-label sl-212"></td>
+                            <td :class="['col-rate totals-label', !isAllView && 'sl-258']"></td>
+                            <td :class="['col-rate totals-label', !isAllView && 'sl-330']"></td>
+                            <td :class="['col-rate totals-label', !isAllView && 'sl-402']"></td>
+                            <td v-for="d in visibleDates" :key="d.iso" :class="['totals-spacer', { 'day-out-of-range': d.isOutOfRange }]"></td>
+                            <td :class="['col-hours text-right font-bold col-st', isAllView ? 'sr-all-st-hours' : 'sr-456']">{{ fmt(totalSt) }}</td>
+                            <td :class="['col-hours text-right font-bold col-ot', isAllView ? 'sr-all-ot-hours' : 'sr-400']">{{ fmt(totalOt) }}</td>
+                            <td :class="['col-hours text-right font-bold col-dt', isAllView ? 'sr-all-dt-hours' : 'sr-344']">{{ fmt(totalDt) }}</td>
+                            <td :class="['col-money text-right font-bold col-st', isAllView ? 'sr-all-st-money' : 'sr-256']">{{ fmtCurrency(totalStAmt) }}</td>
+                            <td :class="['col-money text-right font-bold col-ot', isAllView ? 'sr-all-ot-money' : 'sr-168']">{{ fmtCurrency(totalOtAmt) }}</td>
+                            <td :class="['col-money text-right font-bold col-dt', isAllView ? 'sr-all-dt-money' : 'sr-80']">{{ fmtCurrency(totalDtAmt) }}</td>
+                            <td :class="['col-total text-right font-bold total-grand', isAllView ? 'sr-all-total' : 'sr-36']">{{ fmtCurrency(laborTotal) }}</td>
+                            <td :class="['col-del totals-label', !isAllView && 'sr-0']"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -276,7 +289,7 @@ const props = defineProps<{
     endDate?: string;
     hoursPerShift: number;
     otMethod: string;
-    dtWeekends: boolean;
+    dtWeekends: string;
     shift: string;
     rateBookRates?: RateBookLaborRate[];
     rateBookName?: string;
@@ -288,6 +301,7 @@ const emits = defineEmits<{
     (e: 'loadCrew'): void;
     (e: 'openRateBook'): void;
     (e: 'clearRateBook'): void;
+    (e: 'applyRates'): void;
 }>();
 
 // ── Date columns ─────────────────────────────────────────────────────────────
@@ -299,6 +313,7 @@ interface DateCol {
     weekKey: string;  // JW-N (job-relative week)
     isSaturday: boolean;
     isSunday: boolean;
+    isOutOfRange?: boolean; // day exists in the Mon-Sun week but outside job dates
 }
 
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -352,10 +367,41 @@ const weekTabs = computed(() => {
 
 const activeWeek = ref('all');
 watch(() => props.startDate, () => { activeWeek.value = 'all'; });
+const isAllView = computed(() => activeWeek.value === 'all');
 
 const visibleDates = computed<DateCol[]>(() => {
     if (activeWeek.value === 'all') return allDates.value;
-    return allDates.value.filter(d => d.weekKey === activeWeek.value);
+
+    const weekDates = allDates.value.filter(d => d.weekKey === activeWeek.value);
+    if (weekDates.length === 0) return [];
+
+    // Find the Monday of this calendar week
+    const firstDate = new Date(weekDates[0].iso + 'T12:00:00');
+    const dow = firstDate.getDay();
+    const monday = new Date(firstDate);
+    monday.setDate(monday.getDate() + (dow === 0 ? -6 : 1 - dow));
+
+    const result: DateCol[] = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const iso = d.toISOString().slice(0, 10);
+        const dayDow = d.getDay();
+        const isOutOfRange = !!(
+            (props.startDate && d < new Date(props.startDate + 'T12:00:00')) ||
+            (props.endDate   && d > new Date(props.endDate   + 'T12:00:00'))
+        );
+        result.push({
+            iso,
+            label: `${d.getMonth() + 1}/${d.getDate()}`,
+            dow: DOW_LABELS[dayDow],
+            weekKey: weekDates[0].weekKey,
+            isSaturday: dayDow === 6,
+            isSunday:   dayDow === 0,
+            isOutOfRange,
+        });
+    }
+    return result;
 });
 
 // ── Schedule helpers ──────────────────────────────────────────────────────────
@@ -369,7 +415,7 @@ function getHeadcount(row: LaborRow, iso: string): number {
     return getSchedule(row)[iso] ?? 0;
 }
 
-function setHeadcount(row: LaborRow, idx: number, iso: string, val: number) {
+function setHeadcount(row: LaborRow, _idx: number, iso: string, val: number) {
     const sched = getSchedule(row);
     if (val === 0) delete sched[iso];
     else sched[iso] = val;
@@ -419,13 +465,7 @@ watch([() => props.startDate, () => props.endDate], () => {
     if (changed) { emits('change'); emitRows(); }
 });
 
-function onRateChange(idx: number) {
-    recalcRow(props.rows[idx]);
-    emits('change');
-    emitRows();
-}
-
-function onRowChange(idx: number) {
+function onRowChange(_idx: number) {
     emits('change');
     emitRows();
 }
@@ -436,15 +476,21 @@ function emitRows() {
 
 // ── Row management ──────────────────────────────────────────────────────────
 
-function buildDefaultSchedule(): string {
-    if (!props.startDate || !props.endDate) return '{}';
-    const sched: Record<string, number> = {};
+function getAllDateIsos(): string[] {
+    if (!props.startDate || !props.endDate) return [];
+    const result: string[] = [];
     const cur = new Date(props.startDate + 'T12:00:00');
     const end = new Date(props.endDate + 'T12:00:00');
     while (cur <= end) {
-        sched[cur.toISOString().slice(0, 10)] = 1;
+        result.push(cur.toISOString().slice(0, 10));
         cur.setDate(cur.getDate() + 1);
     }
+    return result;
+}
+
+function buildDefaultSchedule(): string {
+    const sched: Record<string, number> = {};
+    for (const iso of getAllDateIsos()) sched[iso] = 1;
     return JSON.stringify(sched);
 }
 
@@ -478,23 +524,34 @@ const filteredPositions = computed<RateBookLaborRate[]>(() => {
 
 function selectPosition(rate: RateBookLaborRate) {
     const rowShift = props.shift === 'Both' ? addDialogShift.value : props.shift;
-    const newRow: LaborRow = {
-        position: rate.position,
-        laborType: rate.laborType,
-        shift: rowShift,
-        craftCode: rate.craftCode,
-        navCode: rate.navCode,
-        billStRate: rate.stRate,
-        billOtRate: rate.otRate,
-        billDtRate: rate.dtRate,
-        scheduleJson: buildDefaultSchedule(),
-        stHours: 0,
-        otHours: 0,
-        dtHours: 0,
-        subtotal: 0,
-    };
-    recalcRow(newRow);
-    emits('update:rows', [...props.rows, newRow]);
+    const existing = props.rows.find(r => r.position === rate.position && r.shift === rowShift);
+    if (existing) {
+        // Increment headcount by 1 on every scheduled day
+        const sched = getSchedule(existing);
+        const allIsos = getAllDateIsos();
+        for (const iso of allIsos) sched[iso] = (sched[iso] ?? 0) + 1;
+        existing.scheduleJson = JSON.stringify(sched);
+        recalcRow(existing);
+        emits('update:rows', [...props.rows]);
+    } else {
+        const newRow: LaborRow = {
+            position: rate.position,
+            laborType: rate.laborType,
+            shift: rowShift,
+            craftCode: rate.craftCode,
+            navCode: rate.navCode,
+            billStRate: rate.stRate,
+            billOtRate: rate.otRate,
+            billDtRate: rate.dtRate,
+            scheduleJson: buildDefaultSchedule(),
+            stHours: 0,
+            otHours: 0,
+            dtHours: 0,
+            subtotal: 0,
+        };
+        recalcRow(newRow);
+        emits('update:rows', [...props.rows, newRow]);
+    }
     emits('change');
     addDialogVisible.value = false;
 }
@@ -531,10 +588,6 @@ const totalOtAmt = computed(() => props.rows.reduce((s, r) => s + r.otHours * r.
 const totalDtAmt = computed(() => props.rows.reduce((s, r) => s + r.dtHours * r.billDtRate, 0));
 const laborTotal = computed(() => props.rows.reduce((s, r) => s + r.subtotal, 0));
 
-// ── Options ─────────────────────────────────────────────────────────────────
-
-const shiftOptions = ['Day', 'Night', 'Both'];
-
 // ── Formatting ──────────────────────────────────────────────────────────────
 
 function fmt(n: number): string { return n.toFixed(1); }
@@ -549,10 +602,12 @@ function fmtCurrency(n: number): string {
 <style scoped>
 .labor-grid-scroll {
     overflow-x: auto;
+    position: relative;
 }
 
 .labor-table {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 0.8rem;
     min-width: 800px;
 }
@@ -571,27 +626,34 @@ function fmtCurrency(n: number): string {
     text-align: center;
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 2;
 }
 
+/* Match header alignment to data alignment */
+.labor-table thead th.col-position { text-align: left; }
+.labor-table thead th.col-rate,
+.labor-table thead th.col-hours,
+.labor-table thead th.col-money,
+.labor-table thead th.col-total  { text-align: right; }
+
 .labor-table tfoot td {
-    background: var(--surface-50);
+    background: var(--surface-card);
     border-top: 2px solid var(--surface-border);
     padding-top: 6px;
 }
 
-.col-position { min-width: 140px; }
-.col-type     { min-width: 72px; text-align: center; }
-.col-shift    { min-width: 46px; text-align: center; }
-.col-rate     { min-width: 72px; }
+.col-position { min-width: 140px; width: 140px; }
+.col-type     { min-width: 72px;  width: 72px;  text-align: center; }
+.col-shift    { min-width: 46px;  width: 46px;  text-align: center; }
+.col-rate     { min-width: 72px;  width: 72px; }
 
 .type-tag { font-size: 0.65rem; padding: 2px 6px; }
 .rate-display { font-size: 0.78rem; font-variant-numeric: tabular-nums; }
-.col-day      { min-width: 52px; text-align: center; }
-.col-hours    { min-width: 56px; text-align: right; }
-.col-money    { min-width: 88px; text-align: right; }
-.col-total    { min-width: 100px; text-align: right; font-weight: 700; }
-.col-del      { width: 36px; text-align: center; }
+.col-day   { min-width: 52px; text-align: center; }
+.col-hours { min-width: 56px; width: 56px; text-align: right; }
+.col-money { min-width: 88px; width: 88px; text-align: right; }
+.col-total { min-width: 112px; width: 112px; text-align: right; font-weight: 700; }
+.col-del   { width: 44px; min-width: 44px; text-align: center; padding: 0 4px; }
 
 /* ST = green, OT = orange, DT = red */
 .col-st { color: #4ade80; }
@@ -602,11 +664,68 @@ function fmtCurrency(n: number): string {
 .labor-table thead th.col-ot { color: #fb923c; }
 .labor-table thead th.col-dt { color: #f87171; }
 
-.totals-row td { background: var(--surface-50); border-top: 2px solid var(--surface-border); }
+.totals-row td { background: var(--surface-card); border-top: 2px solid var(--surface-border); }
+.totals-label { background: var(--surface-card) !important; }
+.totals-spacer { background: transparent; }
 .total-grand { color: var(--primary-color); font-size: 0.88rem; }
 
 .day-weekend { background-color: rgba(255, 193, 7, 0.06); }
 .day-sunday  { background-color: rgba(244, 67, 54, 0.06); }
+.col-day.day-out-of-range { opacity: 0.2; pointer-events: none; background: transparent; }
+
+/* ── Sticky left columns ─────────────────────────────────────────────────── */
+/* Offsets: Position=0, Type=140, Shift=212, ST Rate=258, OT Rate=330, DT Rate=402 */
+.sl-0   { position: sticky; left: 0;     z-index: 2; background: var(--surface-card); }
+.sl-140 { position: sticky; left: 140px; z-index: 2; background: var(--surface-card); }
+.sl-212 { position: sticky; left: 212px; z-index: 2; background: var(--surface-card); }
+.sl-258 { position: sticky; left: 258px; z-index: 2; background: var(--surface-card); }
+.sl-330 { position: sticky; left: 330px; z-index: 2; background: var(--surface-card); }
+.sl-402 { position: sticky; left: 402px; z-index: 2; background: var(--surface-card); }
+
+/* Header cells that are sticky both top AND left need higher z-index */
+.labor-table thead th.sl-0,
+.labor-table thead th.sl-140,
+.labor-table thead th.sl-212,
+.labor-table thead th.sl-258,
+.labor-table thead th.sl-330,
+.labor-table thead th.sl-402 { z-index: 4; background: var(--surface-100); }
+
+/* ── Sticky right columns ────────────────────────────────────────────────── */
+/* Widths from right: Del=44, Total=112, DT$=88, OT$=88, ST$=88, DT_h=56, OT_h=56, ST_h=56 */
+/* Cumulative right offsets: del=0, total=44, dt$=156, ot$=244, st$=332, dt_h=420, ot_h=476, st_h=532 */
+.sr-0   { position: sticky; right: 0;     z-index: 2; background: var(--surface-card); }
+.sr-36  { position: sticky; right: 44px;  z-index: 2; background: var(--surface-card); }
+.sr-80  { position: sticky; right: 156px; z-index: 2; background: var(--surface-card); }
+.sr-168 { position: sticky; right: 244px; z-index: 2; background: var(--surface-card); }
+.sr-256 { position: sticky; right: 332px; z-index: 2; background: var(--surface-card); }
+.sr-344 { position: sticky; right: 420px; z-index: 2; background: var(--surface-card); }
+.sr-400 { position: sticky; right: 476px; z-index: 2; background: var(--surface-card); }
+.sr-456 { position: sticky; right: 532px; z-index: 2; background: var(--surface-card); }
+
+/* All view has no sticky delete column, so TOTAL owns the far-right edge. */
+.sr-all-total    { position: sticky; right: 0;     z-index: 3; background: var(--surface-card); }
+.sr-all-dt-money { position: sticky; right: 112px; z-index: 2; background: var(--surface-card); }
+.sr-all-ot-money { position: sticky; right: 200px; z-index: 2; background: var(--surface-card); }
+.sr-all-st-money { position: sticky; right: 288px; z-index: 2; background: var(--surface-card); }
+.sr-all-dt-hours { position: sticky; right: 376px; z-index: 2; background: var(--surface-card); }
+.sr-all-ot-hours { position: sticky; right: 432px; z-index: 2; background: var(--surface-card); }
+.sr-all-st-hours { position: sticky; right: 488px; z-index: 2; background: var(--surface-card); }
+
+.labor-table thead th.sr-0,
+.labor-table thead th.sr-36,
+.labor-table thead th.sr-80,
+.labor-table thead th.sr-168,
+.labor-table thead th.sr-256,
+.labor-table thead th.sr-344,
+.labor-table thead th.sr-400,
+.labor-table thead th.sr-456,
+.labor-table thead th.sr-all-total,
+.labor-table thead th.sr-all-dt-money,
+.labor-table thead th.sr-all-ot-money,
+.labor-table thead th.sr-all-st-money,
+.labor-table thead th.sr-all-dt-hours,
+.labor-table thead th.sr-all-ot-hours,
+.labor-table thead th.sr-all-st-hours { z-index: 4; background: var(--surface-100); }
 
 .labor-grid-card :deep(.cell-input .p-inputtext),
 .labor-grid-card :deep(.cell-select .p-dropdown) {
@@ -624,8 +743,48 @@ function fmtCurrency(n: number): string {
     width: 100%;
 }
 
-.labor-grid-card :deep(.cell-headcount) {
-    width: 44px;
+/* Native number input for headcount cells — compact with browser spinner on hover */
+.cell-headcount-native {
+    width: 52px;
+    height: 26px;
+    text-align: center;
+    font-size: 0.8rem;
+    font-family: inherit;
+    background: color-mix(in srgb, var(--shell-surface-alt) 75%, transparent);
+    border: 1px solid var(--shell-border);
+    border-radius: 4px;
+    color: var(--shell-text);
+    padding: 0 2px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    /* Hide spinners by default */
+    -moz-appearance: textfield;
+}
+
+.cell-headcount-native::-webkit-inner-spin-button,
+.cell-headcount-native::-webkit-outer-spin-button {
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.cell-headcount-native:hover::-webkit-inner-spin-button,
+.cell-headcount-native:hover::-webkit-outer-spin-button,
+.cell-headcount-native:focus::-webkit-inner-spin-button,
+.cell-headcount-native:focus::-webkit-outer-spin-button {
+    opacity: 1;
+    -webkit-appearance: inner-spin-button;
+}
+
+.cell-headcount-native:hover,
+.cell-headcount-native:focus {
+    border-color: #4d8fd4;
+    box-shadow: 0 0 0 2px rgba(77, 143, 212, 0.22);
+    -moz-appearance: number-input;
+}
+
+.cell-headcount-native:disabled {
+    opacity: 0.25;
+    pointer-events: none;
 }
 
 .shift-badge {
@@ -671,6 +830,13 @@ function fmtCurrency(n: number): string {
     color: var(--text-color-secondary);
     font-style: italic;
     font-size: 0.78rem;
+}
+
+.rate-book-sep {
+    color: var(--surface-border);
+    font-size: 0.9rem;
+    padding: 0 2px;
+    user-select: none;
 }
 
 /* ── Add Employee dialog ──────────────────────────────────────────────────── */

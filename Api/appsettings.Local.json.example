@@ -1,8 +1,16 @@
 {
   "Jwt": {
-    "Secret": "Stronghold-Estimating-Dev-Secret-Key-2024-Change-In-Prod!"
+    "Secret": "CHANGE-ME-minimum-32-chars-dev-secret-key"
   },
   "ConnectionStrings": {
-    "SqlDb": "Server=localhost,14331;Database=StrongholdEstimating;User Id=sa;Password=Str0nghold!Dev#2024;TrustServerCertificate=True;Encrypt=False;"
+    "SqlDb": "Server=.\\SQLEXPRESS;Database=StrongholdEstimating_Demo;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Ai": {
+    "Provider": "groq",
+    "GroqApiKey": "YOUR-GROQ-API-KEY",
+    "AzureFoundryEndpoint": "https://YOUR-RESOURCE.openai.azure.com",
+    "AzureFoundryKey": "YOUR-AZURE-API-KEY",
+    "AzureFoundryModel": "gpt-4.1 mini-1",
+    "AzureFoundryApiVersion": "2024-12-01-preview"
   }
 }

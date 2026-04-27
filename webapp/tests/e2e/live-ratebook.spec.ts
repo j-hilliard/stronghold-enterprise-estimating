@@ -47,7 +47,7 @@ test.describe('Live — rate books', () => {
     // ── REQ-RATE-003: nearest suggestion when no exact match ─────────────────
     test('[REQ-RATE-003] nearest rate book candidates appear when no exact match', async ({ page, request }) => {
         // Ensure there is at least one rate book in DB to match against
-        const books = await apiGet(request, '/api/v1/rate-books');
+        const books = await apiGet(request, '/api/v1.0/rate-books');
         if (!books || books.length === 0) {
             test.skip(true, 'No rate books seeded — cannot test nearest match');
             return;
@@ -108,7 +108,7 @@ test.describe('Live — rate books', () => {
         });
 
         // DB reconciliation — clone must exist in API
-        const books = await apiGet(request, '/api/v1/rate-books');
+        const books = await apiGet(request, '/api/v1.0/rate-books');
         const clone = books.find((b: any) => b.name === cloneName);
         expect(clone).toBeTruthy();
     });

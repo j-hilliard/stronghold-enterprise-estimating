@@ -33,6 +33,7 @@ public class StaffingPlansController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? status,
         [FromQuery] string? branch,
+        [FromQuery] int? year,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
         CancellationToken ct = default)
@@ -53,6 +54,9 @@ public class StaffingPlansController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(branch))
             q = q.Where(sp => sp.Branch != null && sp.Branch == branch);
+
+        if (year.HasValue)
+            q = q.Where(sp => sp.StartDate.HasValue && sp.StartDate.Value.Year == year.Value);
 
         var total = await q.CountAsync(ct);
 
@@ -225,6 +229,24 @@ public class StaffingPlansController : ControllerBase
         sp.EndDate = dto.EndDate;
         sp.OtMethod = dto.OtMethod;
         sp.DtWeekends = dto.DtWeekends;
+        sp.UpdatedBy = Username;
+        sp.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    [HttpPatch("{id:int}/status")]
+    public async Task<IActionResult> PatchStatus(int id, [FromBody] SpStatusPatchDto dto, CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        var sp = await db.StaffingPlans
+            .FirstOrDefaultAsync(s => s.StaffingPlanId == id && s.CompanyCode == CompanyCode, ct);
+
+        if (sp == null) return NotFound();
+
+        sp.Status = dto.Status;
         sp.UpdatedBy = Username;
         sp.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -432,12 +454,14 @@ public class StaffingPlansController : ControllerBase
     }
 }
 
+public record SpStatusPatchDto(string Status);
+
 public record StaffingPlanUpsertDto(
     string Name, string Client, string? ClientCode,
     string? Branch, string? City, string? State, string? JobLetter,
     string? Status, string Shift, decimal HoursPerShift, int Days,
     DateTime? StartDate, DateTime? EndDate,
-    string OtMethod, bool DtWeekends);
+    string OtMethod, string DtWeekends);
 
 public record StaffingLaborRowDto(
     string Position, string LaborType, string Shift,

@@ -78,10 +78,20 @@
                         <label class="text-sm font-medium">Positions</label>
                         <Button label="Add Row" icon="pi pi-plus" text size="small" @click="addRow" />
                     </div>
+                    <p v-if="costBookPositions.length === 0" class="text-orange-400 text-xs mb-2">
+                        <i class="pi pi-exclamation-triangle mr-1" />No cost book positions found. Load a cost book first.
+                    </p>
                     <DataTable :value="form.rows" size="small" class="template-row-table">
                         <Column header="Position" style="min-width:200px">
                             <template #body="{ data: row, index }">
-                                <InputText v-model="form.rows[index].position" placeholder="Position name" class="w-full" size="small" />
+                                <Dropdown
+                                    v-model="form.rows[index].position"
+                                    :options="costBookPositions"
+                                    placeholder="Select position..."
+                                    class="w-full"
+                                    filter
+                                    :disabled="costBookPositions.length === 0"
+                                />
                             </template>
                         </Column>
                         <Column header="Qty" style="width:70px">
@@ -94,17 +104,6 @@
                                 <Dropdown
                                     v-model="form.rows[index].shift"
                                     :options="shiftOptions"
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    class="w-full"
-                                />
-                            </template>
-                        </Column>
-                        <Column header="Type" style="width:110px">
-                            <template #body="{ data: row, index }">
-                                <Dropdown
-                                    v-model="form.rows[index].laborType"
-                                    :options="laborTypeOptions"
                                     optionLabel="label"
                                     optionValue="value"
                                     class="w-full"
@@ -186,6 +185,7 @@
 import { ref, onMounted } from 'vue';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
+import ConfirmDialog from 'primevue/confirmdialog';
 import { useApiStore } from '@/stores/apiStore';
 import BasePageHeader from '@/components/layout/BasePageHeader.vue';
 
@@ -233,6 +233,7 @@ const applying = ref(false);
 
 const estimateOptions = ref<Array<{ label: string; value: number }>>([]);
 const rateBookOptions = ref<Array<{ label: string; value: number }>>([]);
+const costBookPositions = ref<string[]>([]);
 
 const shiftOptions = [
     { label: 'Day', value: 'Day' },
@@ -287,14 +288,26 @@ onMounted(() => {
 
 // ── Create/Edit dialog ────────────────────────────────────────────────────────
 
+async function loadCostBookPositions() {
+    if (costBookPositions.value.length > 0) return;
+    try {
+        const { data } = await apiStore.api.get('/api/v1/cost-books/positions');
+        costBookPositions.value = Array.isArray(data) ? data : [];
+    } catch {
+        costBookPositions.value = [];
+    }
+}
+
 function openCreate() {
     editingId.value = null;
     form.value = { name: '', description: '', rows: [] };
+    loadCostBookPositions();
     showDialog.value = true;
 }
 
 async function openEdit(t: TemplateListItem) {
     editingId.value = t.crewTemplateId;
+    loadCostBookPositions();
     try {
         const { data } = await apiStore.api.get(`/api/v1/crew-templates/${t.crewTemplateId}`);
         form.value = {
