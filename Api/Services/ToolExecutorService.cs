@@ -368,5 +368,23 @@ public class ToolExecutorService
                 parameters = new { type = "object", properties = new { }, required = Array.Empty<string>() }
             }
         },
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "get_estimate_details",
+                description = "Get full labor rows and equipment rows for a specific past estimate, including peakQty per labor row. Call AFTER search_estimates to compare a historical job's crew and equipment to the current estimate.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        estimate_id = new { type = "integer", description = "EstimateId returned by search_estimates" }
+                    },
+                    required = new[] { "estimate_id" }
+                }
+            }
+        },
     };
 }

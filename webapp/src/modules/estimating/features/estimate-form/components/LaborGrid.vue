@@ -91,14 +91,14 @@
                                 <div class="text-xs">{{ d.label }}</div>
                                 <div class="text-xs opacity-60">{{ d.dow }}</div>
                             </th>
-                            <th :class="['col-hours col-st', isAllView ? 'sr-all-st-hours' : 'sr-456']">ST</th>
-                            <th :class="['col-hours col-ot', isAllView ? 'sr-all-ot-hours' : 'sr-400']">OT</th>
-                            <th :class="['col-hours col-dt', isAllView ? 'sr-all-dt-hours' : 'sr-344']">DT</th>
-                            <th :class="['col-money col-st', isAllView ? 'sr-all-st-money' : 'sr-256']">ST $</th>
-                            <th :class="['col-money col-ot', isAllView ? 'sr-all-ot-money' : 'sr-168']">OT $</th>
-                            <th :class="['col-money col-dt', isAllView ? 'sr-all-dt-money' : 'sr-80']">DT $</th>
-                            <th :class="['col-total', isAllView ? 'sr-all-total' : 'sr-36']">TOTAL</th>
-                            <th :class="['col-del', !isAllView && 'sr-0']"></th>
+                            <th :class="['col-hours col-st', !isAllView && 'sr-456']">ST</th>
+                            <th :class="['col-hours col-ot', !isAllView && 'sr-400']">OT</th>
+                            <th :class="['col-hours col-dt', !isAllView && 'sr-344']">DT</th>
+                            <th :class="['col-money col-st', !isAllView && 'sr-256']">ST $</th>
+                            <th :class="['col-money col-ot', !isAllView && 'sr-168']">OT $</th>
+                            <th :class="['col-money col-dt', !isAllView && 'sr-80']">DT $</th>
+                            <th class="col-total sr-36">TOTAL</th>
+                            <th class="col-del"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -149,14 +149,14 @@
                                     class="cell-headcount-native"
                                 />
                             </td>
-                            <td :class="['col-hours text-right col-st', isAllView ? 'sr-all-st-hours' : 'sr-456']">{{ fmt(row.stHours) }}</td>
-                            <td :class="['col-hours text-right col-ot', isAllView ? 'sr-all-ot-hours' : 'sr-400']">{{ fmt(row.otHours) }}</td>
-                            <td :class="['col-hours text-right col-dt', isAllView ? 'sr-all-dt-hours' : 'sr-344']">{{ fmt(row.dtHours) }}</td>
-                            <td :class="['col-money text-right col-st', isAllView ? 'sr-all-st-money' : 'sr-256']">{{ fmtCurrency(row.stHours * row.billStRate) }}</td>
-                            <td :class="['col-money text-right col-ot', isAllView ? 'sr-all-ot-money' : 'sr-168']">{{ fmtCurrency(row.otHours * row.billOtRate) }}</td>
-                            <td :class="['col-money text-right col-dt', isAllView ? 'sr-all-dt-money' : 'sr-80']">{{ fmtCurrency(row.dtHours * row.billDtRate) }}</td>
-                            <td :class="['col-total text-right font-semibold', isAllView ? 'sr-all-total' : 'sr-36']">{{ fmtCurrency(row.subtotal) }}</td>
-                            <td :class="['col-del', !isAllView && 'sr-0']">
+                            <td :class="['col-hours text-right col-st', !isAllView && 'sr-456']">{{ fmt(row.stHours) }}</td>
+                            <td :class="['col-hours text-right col-ot', !isAllView && 'sr-400']">{{ fmt(row.otHours) }}</td>
+                            <td :class="['col-hours text-right col-dt', !isAllView && 'sr-344']">{{ fmt(row.dtHours) }}</td>
+                            <td :class="['col-money text-right col-st', !isAllView && 'sr-256']">{{ fmtCurrency(row.stHours * row.billStRate) }}</td>
+                            <td :class="['col-money text-right col-ot', !isAllView && 'sr-168']">{{ fmtCurrency(row.otHours * row.billOtRate) }}</td>
+                            <td :class="['col-money text-right col-dt', !isAllView && 'sr-80']">{{ fmtCurrency(row.dtHours * row.billDtRate) }}</td>
+                            <td class="col-total text-right font-semibold sr-36">{{ fmtCurrency(row.subtotal) }}</td>
+                            <td class="col-del">
                                 <Button
                                     icon="pi pi-trash"
                                     text
@@ -178,14 +178,14 @@
                             <td :class="['col-rate totals-label', !isAllView && 'sl-330']"></td>
                             <td :class="['col-rate totals-label', !isAllView && 'sl-402']"></td>
                             <td v-for="d in visibleDates" :key="d.iso" :class="['totals-spacer', { 'day-out-of-range': d.isOutOfRange }]"></td>
-                            <td :class="['col-hours text-right font-bold col-st', isAllView ? 'sr-all-st-hours' : 'sr-456']">{{ fmt(totalSt) }}</td>
-                            <td :class="['col-hours text-right font-bold col-ot', isAllView ? 'sr-all-ot-hours' : 'sr-400']">{{ fmt(totalOt) }}</td>
-                            <td :class="['col-hours text-right font-bold col-dt', isAllView ? 'sr-all-dt-hours' : 'sr-344']">{{ fmt(totalDt) }}</td>
-                            <td :class="['col-money text-right font-bold col-st', isAllView ? 'sr-all-st-money' : 'sr-256']">{{ fmtCurrency(totalStAmt) }}</td>
-                            <td :class="['col-money text-right font-bold col-ot', isAllView ? 'sr-all-ot-money' : 'sr-168']">{{ fmtCurrency(totalOtAmt) }}</td>
-                            <td :class="['col-money text-right font-bold col-dt', isAllView ? 'sr-all-dt-money' : 'sr-80']">{{ fmtCurrency(totalDtAmt) }}</td>
-                            <td :class="['col-total text-right font-bold total-grand', isAllView ? 'sr-all-total' : 'sr-36']">{{ fmtCurrency(laborTotal) }}</td>
-                            <td :class="['col-del totals-label', !isAllView && 'sr-0']"></td>
+                            <td :class="['col-hours text-right font-bold col-st', !isAllView && 'sr-456']">{{ fmt(totalSt) }}</td>
+                            <td :class="['col-hours text-right font-bold col-ot', !isAllView && 'sr-400']">{{ fmt(totalOt) }}</td>
+                            <td :class="['col-hours text-right font-bold col-dt', !isAllView && 'sr-344']">{{ fmt(totalDt) }}</td>
+                            <td :class="['col-money text-right font-bold col-st', !isAllView && 'sr-256']">{{ fmtCurrency(totalStAmt) }}</td>
+                            <td :class="['col-money text-right font-bold col-ot', !isAllView && 'sr-168']">{{ fmtCurrency(totalOtAmt) }}</td>
+                            <td :class="['col-money text-right font-bold col-dt', !isAllView && 'sr-80']">{{ fmtCurrency(totalDtAmt) }}</td>
+                            <td class="col-total text-right font-bold total-grand sr-36">{{ fmtCurrency(laborTotal) }}</td>
+                            <td class="col-del totals-label"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -601,6 +601,9 @@ function fmtCurrency(n: number): string {
 
 <style scoped>
 .labor-grid-scroll {
+    --labor-header-h: 36px;
+    --labor-row-h: 47px;
+    --labor-footer-h: 38px;
     overflow-x: auto;
     position: relative;
 }
@@ -613,13 +616,15 @@ function fmtCurrency(n: number): string {
 }
 
 .labor-table th, .labor-table td {
-    padding: 4px 6px;
+    padding: 0 6px;
     border-bottom: 1px solid var(--surface-border);
     white-space: nowrap;
     vertical-align: middle;
+    box-sizing: border-box;
 }
 
 .labor-table thead th {
+    height: var(--labor-header-h);
     background: var(--surface-100);
     font-weight: 600;
     font-size: 0.75rem;
@@ -636,10 +641,14 @@ function fmtCurrency(n: number): string {
 .labor-table thead th.col-money,
 .labor-table thead th.col-total  { text-align: right; }
 
+.labor-table tbody td {
+    height: var(--labor-row-h);
+}
+
 .labor-table tfoot td {
+    height: var(--labor-footer-h);
     background: var(--surface-card);
     border-top: 2px solid var(--surface-border);
-    padding-top: 6px;
 }
 
 .col-position { min-width: 140px; width: 140px; }
@@ -654,6 +663,18 @@ function fmtCurrency(n: number): string {
 .col-money { min-width: 88px; width: 88px; text-align: right; }
 .col-total { min-width: 112px; width: 112px; text-align: right; font-weight: 700; }
 .col-del   { width: 44px; min-width: 44px; text-align: center; padding: 0 4px; }
+
+.labor-table tbody .col-del :deep(.p-button) {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+}
+
+.labor-table tbody tr:hover .col-del :deep(.p-button),
+.labor-table tbody tr:focus-within .col-del :deep(.p-button) {
+    opacity: 1;
+    pointer-events: auto;
+}
 
 /* ST = green, OT = orange, DT = red */
 .col-st { color: #4ade80; }
@@ -691,41 +712,24 @@ function fmtCurrency(n: number): string {
 .labor-table thead th.sl-402 { z-index: 4; background: var(--surface-100); }
 
 /* ── Sticky right columns ────────────────────────────────────────────────── */
-/* Widths from right: Del=44, Total=112, DT$=88, OT$=88, ST$=88, DT_h=56, OT_h=56, ST_h=56 */
-/* Cumulative right offsets: del=0, total=44, dt$=156, ot$=244, st$=332, dt_h=420, ot_h=476, st_h=532 */
-.sr-0   { position: sticky; right: 0;     z-index: 2; background: var(--surface-card); }
-.sr-36  { position: sticky; right: 44px;  z-index: 2; background: var(--surface-card); }
-.sr-80  { position: sticky; right: 156px; z-index: 2; background: var(--surface-card); }
-.sr-168 { position: sticky; right: 244px; z-index: 2; background: var(--surface-card); }
-.sr-256 { position: sticky; right: 332px; z-index: 2; background: var(--surface-card); }
-.sr-344 { position: sticky; right: 420px; z-index: 2; background: var(--surface-card); }
-.sr-400 { position: sticky; right: 476px; z-index: 2; background: var(--surface-card); }
-.sr-456 { position: sticky; right: 532px; z-index: 2; background: var(--surface-card); }
+/* Delete is NOT sticky. TOTAL is the rightmost sticky column at right:0.   */
+/* Widths: Total=112, DT$=88, OT$=88, ST$=88, DT_h=56, OT_h=56, ST_h=56   */
+/* Cumulative right offsets: total=0, dt$=112, ot$=200, st$=288, dt_h=376, ot_h=432, st_h=488 */
+.sr-36  { position: sticky; right: 0;     z-index: 2; background: var(--surface-card); }
+.sr-80  { position: sticky; right: 112px; z-index: 2; background: var(--surface-card); }
+.sr-168 { position: sticky; right: 200px; z-index: 2; background: var(--surface-card); }
+.sr-256 { position: sticky; right: 288px; z-index: 2; background: var(--surface-card); }
+.sr-344 { position: sticky; right: 376px; z-index: 2; background: var(--surface-card); }
+.sr-400 { position: sticky; right: 432px; z-index: 2; background: var(--surface-card); }
+.sr-456 { position: sticky; right: 488px; z-index: 2; background: var(--surface-card); }
 
-/* All view has no sticky delete column, so TOTAL owns the far-right edge. */
-.sr-all-total    { position: sticky; right: 0;     z-index: 3; background: var(--surface-card); }
-.sr-all-dt-money { position: sticky; right: 112px; z-index: 2; background: var(--surface-card); }
-.sr-all-ot-money { position: sticky; right: 200px; z-index: 2; background: var(--surface-card); }
-.sr-all-st-money { position: sticky; right: 288px; z-index: 2; background: var(--surface-card); }
-.sr-all-dt-hours { position: sticky; right: 376px; z-index: 2; background: var(--surface-card); }
-.sr-all-ot-hours { position: sticky; right: 432px; z-index: 2; background: var(--surface-card); }
-.sr-all-st-hours { position: sticky; right: 488px; z-index: 2; background: var(--surface-card); }
-
-.labor-table thead th.sr-0,
 .labor-table thead th.sr-36,
 .labor-table thead th.sr-80,
 .labor-table thead th.sr-168,
 .labor-table thead th.sr-256,
 .labor-table thead th.sr-344,
 .labor-table thead th.sr-400,
-.labor-table thead th.sr-456,
-.labor-table thead th.sr-all-total,
-.labor-table thead th.sr-all-dt-money,
-.labor-table thead th.sr-all-ot-money,
-.labor-table thead th.sr-all-st-money,
-.labor-table thead th.sr-all-dt-hours,
-.labor-table thead th.sr-all-ot-hours,
-.labor-table thead th.sr-all-st-hours { z-index: 4; background: var(--surface-100); }
+.labor-table thead th.sr-456 { z-index: 4; background: var(--surface-100); }
 
 .labor-grid-card :deep(.cell-input .p-inputtext),
 .labor-grid-card :deep(.cell-select .p-dropdown) {

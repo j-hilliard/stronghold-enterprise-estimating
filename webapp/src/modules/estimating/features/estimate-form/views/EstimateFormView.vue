@@ -355,7 +355,7 @@ function reviewWithAi() {
     aiStore.open();
     setTimeout(() => {
         aiStore.sendMessage(
-            'Review this estimate: check all labor rows for rate anomalies vs historical benchmarks, flag missing standard positions for this job type, and note any concerns.',
+            'Review this estimate against similar past awarded jobs at the same client and location. Tell me what labor positions, quantities, and equipment I may be missing compared to historical work at this site, and estimate how much revenue I could be leaving on the table.',
             buildAiContext()
         );
     }, 150);

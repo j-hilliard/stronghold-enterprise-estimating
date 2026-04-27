@@ -4,7 +4,66 @@
             <BaseButtonCreate label="New Estimate" @click="router.push('/estimating/estimates/new')" />
         </BasePageHeader>
 
+        <!-- ── Shared filter + view toggle bar ────────────────────────────── -->
+        <div class="filter-bar">
+            <span class="p-input-icon-left">
+                <i class="pi pi-search" />
+                <InputText v-model="search" placeholder="Search estimates..." @input="onFilterChange" class="filter-search" />
+            </span>
+            <Dropdown
+                v-model="statusFilter"
+                :options="statusOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="All Stat..."
+                showClear
+                class="filter-dropdown"
+                @change="onFilterChange"
+            />
+            <InputText v-model="clientFilter" placeholder="Client..." class="filter-client" @input="onFilterChange" />
+            <Dropdown
+                v-model="yearFilter"
+                :options="yearOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="All..."
+                showClear
+                class="filter-year"
+                @change="onFilterChange"
+            />
+            <Button
+                v-if="selectedItems.length > 0"
+                label="Delete Selected"
+                icon="pi pi-trash"
+                severity="danger"
+                outlined
+                size="small"
+                @click="confirmBulkDelete"
+            />
+            <div class="filter-spacer" />
+            <div class="view-toggle">
+                <Button
+                    icon="pi pi-list"
+                    size="small"
+                    :severity="viewMode === 'table' ? undefined : 'secondary'"
+                    :outlined="viewMode !== 'table'"
+                    v-tooltip="'Table view'"
+                    @click="setView('table')"
+                />
+                <Button
+                    icon="pi pi-th-large"
+                    size="small"
+                    :severity="viewMode === 'card' ? undefined : 'secondary'"
+                    :outlined="viewMode !== 'card'"
+                    v-tooltip="'Card view'"
+                    @click="setView('card')"
+                />
+            </div>
+        </div>
+
+        <!-- ── Table view ─────────────────────────────────────────────────── -->
         <BaseDataTable
+            v-if="viewMode === 'table'"
             :value="items"
             :loading="loading"
             v-model:selection="selectedItems"
@@ -21,42 +80,6 @@
             @page="onPage"
             @row-dblclick="onRowDblClick"
         >
-            <template #filters>
-                <span class="p-input-icon-left w-full md:w-72">
-                    <i class="pi pi-search" />
-                    <InputText v-model="search" placeholder="Search estimates..." @input="onFilterChange" class="w-full" />
-                </span>
-                <Dropdown
-                    v-model="statusFilter"
-                    :options="statusOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="All Statuses"
-                    showClear
-                    class="w-full md:w-40"
-                    @change="onFilterChange"
-                />
-                <InputText v-model="clientFilter" placeholder="Client..." class="w-full md:w-44" @input="onFilterChange" />
-                <Dropdown
-                    v-model="yearFilter"
-                    :options="yearOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="All Years"
-                    showClear
-                    class="w-full md:w-32"
-                    @change="onFilterChange"
-                />
-                <Button
-                    v-if="selectedItems.length > 0"
-                    label="Delete Selected"
-                    icon="pi pi-trash"
-                    severity="danger"
-                    outlined
-                    @click="confirmBulkDelete"
-                />
-            </template>
-
             <Column selectionMode="multiple" headerStyle="width:3rem" />
             <Column field="estimateNumber" header="#" sortable style="min-width:130px">
                 <template #body="{ data }">
@@ -106,6 +129,81 @@
             </Column>
         </BaseDataTable>
 
+        <!-- ── Card view ──────────────────────────────────────────────────── -->
+        <div v-else class="card-view">
+            <div v-if="loading" class="flex justify-center p-10">
+                <ProgressSpinner />
+            </div>
+            <div v-else-if="items.length === 0" class="empty-state">
+                <i class="pi pi-calculator text-4xl text-surface-400 mb-3" />
+                <p class="text-surface-400">No estimates found.</p>
+            </div>
+            <div v-else class="estimate-card-grid">
+                <Card
+                    v-for="item in items"
+                    :key="item.estimateId"
+                    class="estimate-card"
+                    @click="editEstimate(item.estimateId)"
+                >
+                    <template #title>
+                        <div class="card-header">
+                            <span class="card-number font-mono">{{ item.estimateNumber }}</span>
+                            <Tag :value="item.status" :severity="statusSeverity(item.status)" class="card-status-tag" />
+                        </div>
+                        <div class="card-name">{{ item.name }}</div>
+                    </template>
+                    <template #content>
+                        <div class="card-meta">
+                            <div class="card-meta-row">
+                                <i class="pi pi-building card-icon" />
+                                <span>{{ item.client }}</span>
+                            </div>
+                            <div v-if="item.branch" class="card-meta-row">
+                                <i class="pi pi-map-marker card-icon" />
+                                <span>{{ item.branch }}</span>
+                            </div>
+                            <div v-if="item.startDate" class="card-meta-row">
+                                <i class="pi pi-calendar card-icon" />
+                                <span>{{ fmtDate(item.startDate) }} – {{ fmtDate(item.endDate) }}</span>
+                            </div>
+                            <div class="card-total">{{ fmtCurrency(item.grandTotal) }}</div>
+                        </div>
+                    </template>
+                    <template #footer>
+                        <div class="card-footer-actions">
+                            <Button
+                                label="Open"
+                                icon="pi pi-folder-open"
+                                size="small"
+                                outlined
+                                class="flex-1"
+                                @click.stop="editEstimate(item.estimateId)"
+                            />
+                            <Button
+                                icon="pi pi-ellipsis-v"
+                                size="small"
+                                text
+                                severity="secondary"
+                                v-tooltip="'More actions'"
+                                @click.stop="openRowMenu($event, item)"
+                            />
+                        </div>
+                    </template>
+                </Card>
+            </div>
+
+            <Paginator
+                v-if="total > pageSize"
+                :rows="pageSize"
+                :totalRecords="total"
+                :rowsPerPageOptions="[25, 50, 100]"
+                template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                currentPageReportTemplate="Showing {first} to {last} of {totalRecords}"
+                class="card-paginator"
+                @page="onPage"
+            />
+        </div>
+
         <Menu ref="rowMenu" :model="rowMenuItems" popup appendTo="body" />
 
         <!-- Lost Reason Dialog -->
@@ -147,6 +245,14 @@ const router = useRouter();
 const confirm = useConfirm();
 const toast = useToast();
 const apiStore = useApiStore();
+
+// ── View mode ─────────────────────────────────────────────────────────────────
+type ViewMode = 'table' | 'card';
+const viewMode = ref<ViewMode>((localStorage.getItem('ql-view-mode') as ViewMode) ?? 'table');
+function setView(mode: ViewMode) {
+    viewMode.value = mode;
+    localStorage.setItem('ql-view-mode', mode);
+}
 
 const devMode = import.meta.env.DEV;
 const resetting = ref(false);
@@ -461,6 +567,27 @@ onMounted(loadEstimates);
 </script>
 
 <style scoped>
+/* ── Filter bar ──────────────────────────────────────────────────────────── */
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+}
+
+.filter-search { width: 220px; }
+.filter-dropdown { width: 160px; }
+.filter-client { width: 160px; }
+.filter-year { width: 120px; }
+.filter-spacer { flex: 1; }
+
+.view-toggle { display: flex; gap: 0.25rem; }
+
+/* ── Table view ──────────────────────────────────────────────────────────── */
 .estimate-list-view :deep(.p-datatable-tbody > tr) {
     cursor: pointer;
 }
@@ -475,5 +602,95 @@ onMounted(loadEstimates);
 }
 :deep(.p-datatable-tbody > tr:hover) .row-actions {
     opacity: 1;
+}
+
+/* ── Card view ───────────────────────────────────────────────────────────── */
+.card-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    border: 1px dashed var(--surface-border);
+    border-radius: 8px;
+}
+
+.estimate-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.estimate-card {
+    cursor: pointer;
+    transition: box-shadow 0.15s, border-color 0.15s;
+    border: 1px solid var(--surface-border);
+}
+.estimate-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    border-color: var(--primary-color);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+.card-number {
+    font-size: 0.75rem;
+    color: var(--blue-400);
+    font-weight: 600;
+}
+.card-status-tag { font-size: 0.7rem; }
+
+.card-name {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 0.25rem;
+}
+
+.card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+}
+.card-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--text-color-secondary);
+}
+.card-icon {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    width: 14px;
+    flex-shrink: 0;
+}
+.card-total {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-top: 0.25rem;
+}
+
+.card-footer-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.card-paginator {
+    border-top: 1px solid var(--surface-border);
+    padding-top: 0.75rem;
 }
 </style>
