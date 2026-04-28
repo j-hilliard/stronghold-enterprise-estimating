@@ -8,6 +8,8 @@ For UI/reporting defects, include concrete evidence: screenshot path, visible va
 Every subagent must also read `docs/LIVE_QA_TODO.md` and report OPEN/DONE/BLOCKED/REOPENED/ACCEPTED AS-IS for relevant live TODO items.
 If a live TODO checkbox is marked complete but verification fails, the subagent must report it as REOPENED with evidence.
 If Joseph has accepted a behavior as-is in `docs/LIVE_QA_TODO.md`, do not fail that behavior again unless the implementation changed or new evidence creates a new risk. Report it as ACCEPTED AS-IS with the linked TODO evidence.
+Only Joseph or Codex may close live TODO items. If Claude checked an item complete without Joseph/Codex evidence, report it as REOPENED.
+Portal / Planning / Scheduling implementation must also be checked against `docs/PLATFORM_EXPANSION_MASTER_CONTRACT.md`.
 
 ---
 
@@ -23,6 +25,12 @@ If Joseph has accepted a behavior as-is in `docs/LIVE_QA_TODO.md`, do not fail t
 | UI / Layout / Controls | `QA-UI` | UI/UX Auditor |
 | AI Demo Readiness | `QA-AI` | AI Demo Auditor |
 | Demo Data Readiness | `QA-DATA` | AI Demo Auditor + Staffing & Forecast Auditor |
+| Platform Shell / App Registry | `QA-PLAT` | Platform QA Auditor |
+| Database Bootstrap / Seed | `QA-BOOT` | Backend QA Auditor |
+| Planning / PM | `QA-PLAN` | Planning QA Auditor |
+| Scheduling | `QA-SCHED` | Scheduling QA Auditor |
+| Actuals / Delta | `QA-ACT` | Planning + Cost QA Auditor |
+| FCO / Change Order | `QA-FCO` | Planning + Document QA Auditor |
 
 ---
 
@@ -61,7 +69,8 @@ If Joseph has accepted a behavior as-is in `docs/LIVE_QA_TODO.md`, do not fail t
   - Open an estimate with multiple labor rows and enough days to require horizontal scrolling.
   - Scroll left, middle, and far right. TOTAL column must remain visible and aligned.
   - Repeat on a staffing plan labor grid.
-  - TOTAL must not overlap delete icons, rate columns, or row cells.
+  - TOTAL must not overlap rate columns or row cells.
+  - Row trash/delete action must still exist, but should stay hidden until that row is hovered.
   - Capture screenshots at each scroll position.
 
 ---
@@ -785,6 +794,151 @@ If Joseph has accepted a behavior as-is in `docs/LIVE_QA_TODO.md`, do not fail t
   - 2025 estimates must have statuses, summaries/revenue, realistic clients/locations, and labor rows where appropriate.
   - 2027 staffing plans must have labor rows and non-zero Rough Labor.
   - Do not run reset/seed commands against live SQL Express without Joseph approval.
+
+---
+
+## Platform Shell / App Registry
+
+### QA-PLAT-001: Repo Truth And Real Paths Are Documented Before Implementation
+- **Platform requirement:** Claude must inspect the actual repo before coding and must not invent paths.
+- **Verify:**
+  - Architecture/worklog docs identify the real locations of `Api/Program.cs`, `Data/AppDbContext.cs`, `Data/Migrations`, `Data/DBInitializer.cs`, `Data/DesignTimeContextFactory.cs`, `webapp/src/apps.ts`, and `webapp/src/router/index.ts`.
+  - Any prompt path that conflicts with the repo is corrected in writing.
+  - No new feature is placed under invented paths like `Api/Data/AppDbContext.cs` or `Api/Migrations`.
+
+### QA-PLAT-002: Portal Home And App Tiles Load Without Breaking Estimating
+- **Platform requirement:** One login, one portal shell, three app entry points.
+- **Verify:**
+  - `/` loads a Portal dashboard/launcher, not a dead page.
+  - Portal has visible entry points for Estimating, Planning / PM, and Scheduling.
+  - `/estimating` and key existing estimating routes still load.
+  - Portal uses backend summary/read-model data where possible; it must not duplicate scheduling/planning business logic in the Vue view.
+
+### QA-PLAT-003: Claude Cannot Self-Close TODO Items
+- **Governance requirement:** Only Joseph or Codex closes TODO items.
+- **Verify:**
+  - Any Claude-updated TODO item marked complete includes either Joseph/Codex verification evidence or an explicit Joseph waiver/accepted-as-is note.
+  - If Claude checked an item complete with only implementation notes, mark it REOPENED and cite the item.
+
+### QA-PLAT-004: Existing Estimating Demo Regressions Still Pass After Platform Work
+- **Platform requirement:** New apps must not break the existing demo-critical estimating app.
+- **Verify:**
+  - Existing estimate list, new estimate form, staffing plan list/form, rate book, cost book, crew template, revenue forecast, manpower forecast, and AI sidebar smoke checks still pass.
+  - Existing completed/accepted AI demo items in `docs/LIVE_QA_TODO.md` remain closed unless fresh evidence fails.
+  - Cost Book data is not deleted, reset, or replaced.
+
+---
+
+## Database Bootstrap / Seed
+
+### QA-BOOT-001: Migration-Based Bootstrap With Separated Seed Responsibilities
+- **Platform requirement:** EF Core migrations are the source of truth; seed logic is explicit and safe.
+- **Verify:**
+  - Startup uses `Database.Migrate()` or an equivalent migration-based bootstrap.
+  - No real lifecycle path uses `EnsureCreated`.
+  - Reference seed and demo/sample seed are separated or clearly staged with config flags.
+  - Demo seed is configurable and not assumed for higher environments.
+  - Seed logic is idempotent and safe to rerun.
+  - Seed logic is not moved into a controller as the primary lifecycle path.
+
+---
+
+## Planning / PM
+
+### QA-PLAN-001: Planning App Is A Real Operational Module, Not Notes
+- **Platform requirement:** Planning owns step-out plans, work packages, FCO planning, and actuals.
+- **Verify:**
+  - `/planning` loads a Planning / PM app shell.
+  - Planning views and backend endpoints are separated from Estimating and Scheduling responsibilities.
+  - Planning records link to source estimates/staffing/FCOs through explicit source links/read models, not unsafe estimate table mutation.
+
+### QA-PLAN-002: Step-Out Step Numbering Supports Insertable Values
+- **Platform requirement:** Step numbering supports values like `1`, `1.2`, `1.5`, `1.7`, `2`.
+- **Verify:**
+  - Step model supports a display step code/string and a sortable key, or an equivalent that preserves inserted steps.
+  - Creating/editing steps with decimal-like display values persists and renders in order.
+  - Implementation does not rely on a simple integer-only sequence for business-visible step numbering.
+
+### QA-PLAN-003: Step Dependencies And Parallel Work Persist And Validate
+- **Platform requirement:** Step-out plans model execution sequencing, dependency handling, and parallel work.
+- **Verify:**
+  - Steps can define predecessor/successor dependencies.
+  - A step cannot depend on itself.
+  - Circular dependencies are prevented or reported as a validation defect.
+  - Parallel steps can be represented distinctly from dependency sequencing.
+
+### QA-PLAN-004: Work Package Generation Feeds Scheduling Demand
+- **Platform requirement:** Planning feeds Scheduling through work packages.
+- **Verify:**
+  - A step-out plan can generate one or more work packages.
+  - Work packages include source link, craft/headcount, planned dates, status, client/site refs, and scheduling-ready demand fields.
+  - Scheduling demand includes work packages with ready/schedulable status.
+
+---
+
+## Scheduling
+
+### QA-SCHED-001: Scheduling Demand Uses Explicit Status And Source Rules
+- **Platform requirement:** Demand comes only from valid source types and documented statuses.
+- **Verify:**
+  - Demand service documents which estimate statuses count as schedulable demand.
+  - Demand includes estimates that represent real work/jobs per that documented status rule.
+  - Demand includes Planning work packages ready for scheduling.
+  - Demand does not read every estimate blindly.
+
+### QA-SCHED-002: Converted Staffing Plans Are Deduped
+- **Platform requirement:** Converted staffing plans must not count separately from linked estimates.
+- **Verify:**
+  - Staffing plans where `ConvertedEstimateId != null` are excluded from scheduling demand and forecast demand.
+  - The linked estimate appears as the source of truth when its status qualifies.
+  - Add or run a focused test proving one converted staffing plan does not appear as a separate demand row.
+
+### QA-SCHED-003: Approved Unconverted Staffing Plans Count As Future Demand
+- **Platform requirement:** Approved staffing plans where `ConvertedEstimateId IS NULL` count as planned future demand.
+- **Verify:**
+  - An approved unconverted staffing plan appears in scheduling demand.
+  - Labor rows/headcount from the plan drive craft demand.
+  - Header-only staffing plans with no labor are not treated as valid coverage.
+
+### QA-SCHED-004: Resources, Assignments, Shortages, Ending-Soon, And Available-Soon Are Visible
+- **Platform requirement:** Scheduling owns actual people assignment and coverage visibility.
+- **Verify:**
+  - `/scheduling` loads a Scheduling app shell/dashboard.
+  - Resources/people list loads.
+  - Assignments list or board loads.
+  - At least one shortage can be shown from demo/test data.
+  - Ending-soon assignments/jobs and available-soon resources are surfaced.
+
+### QA-SCHED-005: Assignment Conflict And Availability Rules Work
+- **Platform requirement:** Scheduling detects bad assignments.
+- **Verify:**
+  - Double-booked resource assignments are detected.
+  - Assignments during PTO/blackout/unavailable blocks are detected.
+  - Certification/skill mismatch is detected or explicitly documented as a future-phase gap with TODO coverage.
+
+---
+
+## Actuals / Estimate Delta
+
+### QA-ACT-001: Actuals Capture Feeds Estimate/FCO Delta Reporting
+- **Platform requirement:** Planning/Scheduling actuals must compare against estimate/FCO baselines.
+- **Verify:**
+  - Work package or step actual labor can be recorded.
+  - Actual charge uses Rate Book logic where applicable.
+  - Actual internal cost uses Cost Book logic where applicable.
+  - Delta output shows planned vs actual hours, charge, cost, margin, amount delta, and percent delta.
+  - Rate/cost/margin math is not duplicated only in frontend views.
+
+---
+
+## FCO / Change Order
+
+### QA-FCO-001: Signable FCO Document Can Be Generated
+- **Platform requirement:** FCO/change work tied to estimates must produce a signable document.
+- **Verify:**
+  - FCO/change record links to an estimate.
+  - Generated document includes project/client info, change number/date, changed scope, reason/basis, schedule impact, cost breakdown, updated value, status, and approval/signature fields.
+  - Document can be printed/PDF-ready or otherwise reviewed without exposing internal-only fields unless intended.
 
 ---
 

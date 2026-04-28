@@ -107,15 +107,15 @@
             <Column field="endDate" header="End" style="min-width:110px">
                 <template #body="{ data }">{{ fmtDate(data.endDate) }}</template>
             </Column>
-            <Column field="grandTotal" header="Grand Total" style="min-width:130px">
+            <Column field="grandTotal" header="Grand Total" style="min-width:130px; text-align:right" bodyStyle="text-align:right">
                 <template #body="{ data }">
-                    <span class="font-semibold">{{ fmtCurrency(data.grandTotal) }}</span>
+                    <span class="font-semibold tabular-nums">{{ fmtCurrency(data.grandTotal) }}</span>
                 </template>
             </Column>
-            <Column header="Actions" style="min-width:120px" bodyClass="row-actions-cell">
+            <Column header="" style="width:110px; text-align:right" bodyStyle="text-align:right">
                 <template #body="{ data }">
-                    <div class="row-actions flex gap-1 align-items-center">
-                        <Button icon="pi pi-pencil" text rounded size="small" v-tooltip="'Edit'" @click.stop="editEstimate(data.estimateId)" />
+                    <div class="row-actions">
+                        <Button icon="pi pi-pencil" text rounded size="small" v-tooltip="'Open'" @click.stop="editEstimate(data.estimateId)" />
                         <Button icon="pi pi-trash" text rounded size="small" severity="danger" v-tooltip="'Delete'" @click.stop="confirmDelete(data)" />
                         <Button
                             icon="pi pi-ellipsis-v"
@@ -591,16 +591,35 @@ onMounted(loadEstimates);
 .estimate-list-view :deep(.p-datatable-tbody > tr) {
     cursor: pointer;
 }
+
+/* Compact row density */
+.estimate-list-view :deep(.p-datatable-thead > tr > th) {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-color-secondary);
+}
+.estimate-list-view :deep(.p-datatable-tbody > tr > td) {
+    padding: 0.3rem 0.65rem;
+    line-height: 1.4;
+    font-size: 0.85rem;
+}
+
 .scenario-tag {
     font-size: 0.6rem;
     padding: 1px 5px;
     opacity: 0.75;
 }
 .row-actions {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    justify-content: flex-end;
     opacity: 0;
     transition: opacity 0.15s;
 }
-:deep(.p-datatable-tbody > tr:hover) .row-actions {
+.estimate-list-view :deep(.p-datatable-tbody > tr:hover) .row-actions {
     opacity: 1;
 }
 

@@ -2,6 +2,34 @@
 
 Use this brief before assigning any Codex/AI subagent to audit, test, or improve the Stronghold Enterprise Estimating demo. This is a safety and workflow document. It does not authorize code changes or database writes by itself.
 
+## QA Orchestration Authority
+
+Codex is the QA orchestrator for this project. Claude may implement fixes/features, but Claude does not get to certify its own work as complete.
+
+- Only Joseph or Codex may check off items in `docs/LIVE_QA_TODO.md`.
+- Claude may write implementation notes and mark an item `Ready for Codex verification`.
+- If Claude checks an item complete without Joseph/Codex verification, reopen it and write: `Reopened reason: checked by implementer without independent verification`.
+- Claude may only close an item directly if the note explicitly states `Joseph waived this requirement` or `Joseph accepted this as-is`, with date, rationale, and evidence.
+- Codex audits Claude's changes, captures screenshots, updates TODO status, and writes evidence handoffs.
+
+## Platform Expansion Contract
+
+Portal / Planning / Scheduling work must also follow:
+
+- `docs/PLATFORM_EXPANSION_MASTER_CONTRACT.md`
+
+That document defines the one-portal/three-app architecture, app boundaries, scheduling demand rules, planning step-out expectations, actual-vs-estimate delta requirements, FCO document requirements, EF/bootstrap rules, and phase gates.
+
+Any audit of platform work must verify:
+
+- The implementation used the real repo paths (`Api/`, `Data/`, `Shared/`, `webapp/`) and did not invent paths.
+- Estimating still works after platform changes.
+- Portal remains a thin shell/read-model surface.
+- Planning owns step-out/work-package/FCO/actuals workflow.
+- Scheduling owns resources, availability, assignments, conflicts, coverage gaps, ending-soon, and available-soon.
+- Converted staffing plans do not count separately from linked estimates.
+- Approved unconverted staffing plans do count as future demand.
+
 ## Hard Rules
 
 - Do not delete application code.
@@ -383,6 +411,7 @@ Before testing anything, read both files completely:
 - docs/SUBAGENT_DEMO_AUDIT_BRIEF.md  (business rules, demo-safety, what you must not do)
 - docs/LIVE_QA_TODO.md               (current live blockers and checkboxes - verify relevant items)
 - docs/QA_REGRESSION_CHECKLIST.md    (every bug we've found — verify ALL items in your lane)
+- docs/PLATFORM_EXPANSION_MASTER_CONTRACT.md (required for Portal/Planning/Scheduling work)
 
 Your task is read-only unless explicitly told otherwise. Do not edit files. Do not seed/reset/delete data. Do not mutate SQL Express. Do not run destructive tests.
 
@@ -395,6 +424,8 @@ For analytics/revenue forecast testing, reconcile numbers. If KPI cards and the 
 For estimate status lifecycle testing, status must be read-only in the estimate header. Save, Submit for Approval, Award/Won, Lost/Declined, and Revision must be explicit workflow actions with automatic status changes.
 
 For staffing-plan testing, do not create header-only staffing plans. A staffing plan with Rough Labor = $0 is not valid coverage unless the scenario explicitly tests an empty plan.
+
+For platform-expansion testing, treat Claude as the implementer and Codex/Joseph as the closer. Do not mark a TODO complete unless Joseph or Codex verified it. If Claude checked a box without independent evidence, report it as REOPENED.
 
 Audit only your assigned lane. Report findings with file paths, demo risk, safe manual checks, and recommended fixes. Treat Cost Book preservation as a hard requirement.
 ```

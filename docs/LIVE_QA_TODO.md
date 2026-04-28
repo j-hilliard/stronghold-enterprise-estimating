@@ -5,6 +5,9 @@ This is the living demo-readiness scoreboard. Update it whenever testing finds a
 ## Rules
 
 - This file is a coordination board, not automatic permission to change code.
+- **Closure authority:** Only Joseph or Codex may check off live TODO items as complete. Claude may add implementation notes and may claim "ready for verification," but must not close an item unless the note explicitly says `Joseph waived this requirement` or `Joseph accepted this as-is`, with date/rationale/evidence.
+- **Claude self-certification rule:** If Claude checks an item without Joseph/Codex verification, Codex must uncheck it during the next audit and add `Reopened reason: checked by implementer without independent verification`.
+- **Implementation vs verification split:** Claude is treated as the implementer. Codex is the QA/orchestration owner responsible for audit sweeps, screenshots, evidence packets, regression checklist updates, and final TODO state.
 - An open item means `investigate/decide`, not `fix immediately`.
 - If Joseph accepts a behavior as-is, move the item to `Accepted As-Is` with the decision, rationale, date, and any evidence. Do not keep re-reporting accepted behavior as a defect unless new evidence changes the risk.
 - Do not mark an item complete until it has evidence: file paths, screenshots, build/test output, or explicit manual verification notes.
@@ -18,6 +21,7 @@ This is the living demo-readiness scoreboard. Update it whenever testing finds a
   - a handoff markdown file under `docs/` with exact screenshot paths
   - each finding written granularly: what is wrong, why it is wrong, likely files, how to fix, and regression test
   - no vague "looks wrong" findings without visible/code evidence
+- Platform expansion work must follow `docs/PLATFORM_EXPANSION_MASTER_CONTRACT.md`. That document is the stable Claude-facing implementation/audit contract for Portal + Planning + Scheduling.
 
 ## Open Blockers
 
@@ -132,10 +136,10 @@ This is the living demo-readiness scoreboard. Update it whenever testing finds a
 - **Problem:** The labor grid is horizontally scrollable and the TOTAL column is a key demo value. If it unsticks, clips, misaligns, or disappears, users cannot trust totals while entering crews/schedules.
 - **Impact:** Demo-critical for both estimate and staffing plan forms.
 - **Likely files:** `webapp/src/modules/estimating/features/estimate-form/components/LaborGrid.vue`, related CSS.
-- **Expected behavior:** TOTAL column remains sticky on the right while horizontal scrolling, aligns with each labor row and the total footer, and does not overlap delete/actions or rate columns.
+- **Expected behavior:** TOTAL column remains fixed on the right while horizontal scrolling, aligns with each labor row and the total footer, and does not overlap delete/actions or rate columns. Row trash can remains available, but is hidden until the row is hovered.
 - **Verification required:** Screenshots at left scroll, middle scroll, and far-right scroll for an estimate and a staffing plan with multiple labor rows/days.
 - **Regression checklist:** `QA-LG-003`.
-- **Latest implementation:** 2026-04-27 Codex updated `LaborGrid.vue` so `All` view uses dedicated right-sticky offsets. In `All`, `TOTAL` now pins at `right: 0` (`sr-all-total`) and the trash/delete column is no longer the sticky right edge. `npm run build:dev` passed.
+- **Latest implementation:** 2026-04-27 Codex removed the separate fixed rail and restored one uniform table layout for `All` and week views. The right-side ST/OT/DT/ST$/OT$/DT$/TOTAL/delete block uses the same sticky table-column structure in both modes, and the row trash icon is hidden until row hover. `npm run build:dev` passed.
 - **Reopened reason:** N/A.
 
 ### P0-014: Crew Template Dialog Must Have Empty State And Demo Templates
@@ -181,6 +185,37 @@ This is the living demo-readiness scoreboard. Update it whenever testing finds a
 - **Expected behavior:** Checklist consistently describes status as read-only workflow and chart as top-period-driven.
 - **Verification required:** Search checklist for stale wording like manual status setting and conflicting QTD/YTD expectations.
 - **Regression checklist:** This document plus `QA-EST-004` through `QA-EST-013`, `QA-AN-009` through `QA-AN-016`.
+- **Reopened reason:** N/A.
+
+## Platform Expansion Control Items
+
+These items govern the Portal / Planning / Scheduling expansion. They are not permission for Codex to implement app code; they are the audit gates Codex will use to manage Claude's implementation work.
+
+### PLATFORM-001: Claude Must Follow The Platform Master Contract
+
+- [ ] Verify Claude's implementation matches the platform master contract.
+- **Problem:** Platform work can easily drift into generic scheduling screens, invented repo paths, or mixed domain ownership if the implementation prompt is not anchored in the repo and business rules.
+- **Expected behavior:** Claude reads `docs/PLATFORM_EXPANSION_MASTER_CONTRACT.md` before implementation, uses actual repo paths, keeps Estimating/Planning/Scheduling/Portal boundaries separate, and records work in the required docs.
+- **Verification required:** Codex checks changed files against the contract after each Claude chunk and records any violations as live TODO items.
+- **Regression checklist:** `QA-PLAT-001`, `QA-PLAT-002`, `QA-BOOT-001`, `QA-SCHED-001`, `QA-SCHED-002`.
+- **Reopened reason:** N/A.
+
+### PLATFORM-002: Platform TODO Closure Requires Joseph Or Codex Verification
+
+- [ ] Enforce closure authority on all platform-expansion tasks.
+- **Problem:** If Claude marks its own TODOs complete, the project loses independent QA and Joseph becomes the middle man again.
+- **Expected behavior:** Claude may write `Ready for Codex verification`, but checkboxes remain open until Joseph or Codex verifies with evidence. If Joseph waives a requirement, Claude must quote that waiver and Codex must move it to `Accepted As-Is`.
+- **Verification required:** Codex audits all newly checked platform/TODO items and reopens any self-certified items without independent evidence.
+- **Regression checklist:** `QA-PLAT-003`.
+- **Reopened reason:** N/A.
+
+### PLATFORM-003: Platform Expansion Must Not Regress Existing Estimating Demo
+
+- [ ] Verify Estimating remains intact while Portal/Planning/Scheduling are added.
+- **Problem:** A new portal/scheduling app can break existing estimating routes, AI sidebar context, staffing plans, rate/cost book workflows, or demo data.
+- **Expected behavior:** `/estimating` routes still load; estimate/staffing workflows still pass existing demo regressions; cost books/rate books are not deleted or replaced; AI demo gates remain accepted unless fresh evidence fails.
+- **Verification required:** Codex runs or documents safe regression checks after each platform chunk, with screenshots where UI changes are visible.
+- **Regression checklist:** `QA-PLAT-004`, plus existing `QA-EST`, `QA-SP`, `QA-RCB`, `QA-AI`, and `QA-AN` gates.
 - **Reopened reason:** N/A.
 
 

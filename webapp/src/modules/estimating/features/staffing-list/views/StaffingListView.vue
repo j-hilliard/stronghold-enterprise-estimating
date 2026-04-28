@@ -1,4 +1,4 @@
-﻿<template>
+<template>
     <div class="staffing-list-view" data-testid="sp-list-view">
         <div class="sp-toolbar" data-testid="sp-toolbar">
             <div class="sp-toolbar-left">
@@ -17,7 +17,45 @@
                 />
             </div>
 
-            <div class="sp-toolbar-right">
+            <div class="sp-filters-inline">
+                <Dropdown
+                    v-model="statusFilter"
+                    :options="statusOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="All Status"
+                    class="w-12rem"
+                    data-testid="sp-status"
+                    @change="onFilterChange"
+                />
+                <Dropdown
+                    v-model="branchFilter"
+                    :options="branchOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="All Branches"
+                    class="w-12rem"
+                    data-testid="sp-branch"
+                    @change="onFilterChange"
+                />
+                <Dropdown
+                    v-model="yearFilter"
+                    :options="yearOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="All Years"
+                    class="w-10rem"
+                    showClear
+                    data-testid="sp-year"
+                    @change="onFilterChange"
+                />
+                <InputText
+                    v-model="quickFilter"
+                    placeholder="Quick filter (client/location/plan)"
+                    class="flex-1 min-w-12rem"
+                    data-testid="sp-quick"
+                    @input="applyQuickFilter"
+                />
                 <InputText
                     v-model="search"
                     placeholder="Search plans..."
@@ -25,55 +63,113 @@
                     data-testid="sp-search"
                     @input="onFilterChange"
                 />
-                <Tag :value="`Plans: ${total}`" severity="info" data-testid="sp-count" />
             </div>
-        </div>
 
-        <div class="sp-filters" data-testid="sp-filters">
-            <Dropdown
-                v-model="statusFilter"
-                :options="statusOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="All Status"
-                class="w-12rem"
-                data-testid="sp-status"
-                @change="onFilterChange"
-            />
-            <Dropdown
-                v-model="branchFilter"
-                :options="branchOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="All Branches"
-                class="w-12rem"
-                data-testid="sp-branch"
-                @change="onFilterChange"
-            />
-            <Dropdown
-                v-model="yearFilter"
-                :options="yearOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="All Years"
-                class="w-10rem"
-                showClear
-                data-testid="sp-year"
-                @change="onFilterChange"
-            />
-            <InputText
-                v-model="quickFilter"
-                placeholder="Quick filter (client/location/plan)"
-                class="flex-1"
-                data-testid="sp-quick"
-                @input="applyQuickFilter"
-            />
+            <div class="sp-toolbar-right">
+                <Button
+                    v-if="selectedPlans.length > 0"
+                    :label="`Delete ${selectedPlans.length} Selected`"
+                    icon="pi pi-trash"
+                    severity="danger"
+                    outlined
+                    size="small"
+                    @click="confirmBulkDelete"
+                />
+                <Tag :value="`Plans: ${total}`" severity="info" data-testid="sp-count" />
+                <div class="view-toggle">
+                    <Button
+                        icon="pi pi-list"
+                        text
+                        rounded
+                        size="small"
+                        v-tooltip="'Table view'"
+                        :severity="viewMode === 'table' ? undefined : 'secondary'"
+                        :outlined="viewMode !== 'table'"
+                        @click="setView('table')"
+                    />
+                    <Button
+                        icon="pi pi-th-large"
+                        text
+                        rounded
+                        size="small"
+                        v-tooltip="'Card view'"
+                        :severity="viewMode === 'card' ? undefined : 'secondary'"
+                        :outlined="viewMode !== 'card'"
+                        @click="setView('card')"
+                    />
+                </div>
+            </div>
         </div>
 
         <div v-if="loading" class="flex justify-content-center py-8" data-testid="sp-loading">
             <ProgressSpinner />
         </div>
 
+        <!-- ── TABLE VIEW ── -->
+        <DataTable
+            v-else-if="viewMode === 'table'"
+            :value="filteredItems"
+            :rows="pageSize"
+            rowHover
+            class="sp-table"
+            data-testid="sp-table"
+            size="small"
+            v-model:selection="selectedPlans"
+            selectionMode="multiple"
+            dataKey="staffingPlanId"
+            @row-dblclick="(e: any) => router.push(`/estimating/staffing-plans/${e.data.staffingPlanId}`)"
+        >
+            <Column selectionMode="multiple" headerStyle="width:3rem" />
+            <Column field="staffingPlanNumber" header="Plan #" style="width:150px">
+                <template #body="{ data: row }">
+                    <span class="sp-number-table">{{ row.staffingPlanNumber }}</span>
+                </template>
+            </Column>
+            <Column header="Status" style="width:155px">
+                <template #body="{ data: row }">
+                    <Tag
+                        :value="(row.status || 'Draft').toUpperCase()"
+                        :severity="statusSeverity(row.status)"
+                        class="text-xs"
+                    />
+                </template>
+            </Column>
+            <Column field="name" header="Plan Name" />
+            <Column field="client" header="Client" style="width:170px" />
+            <Column header="Location" style="width:140px">
+                <template #body="{ data: row }">{{ locationLabel(row) }}</template>
+            </Column>
+            <Column header="Dates" style="width:175px">
+                <template #body="{ data: row }">{{ datesLabel(row) }}</template>
+            </Column>
+            <Column header="Rough Labor" style="width:130px" bodyStyle="text-align:right" headerStyle="text-align:right">
+                <template #body="{ data: row }">
+                    <span class="font-semibold tabular-nums">{{ fmtCurrency(row.roughLaborTotal) }}</span>
+                </template>
+            </Column>
+            <Column header="" style="width:210px">
+                <template #body="{ data: row }">
+                    <div class="sp-row-actions">
+                        <template v-if="row.convertedEstimateId">
+                            <Button label="Open Estimate" icon="pi pi-arrow-right" size="small" severity="success" text
+                                @click.stop="router.push(`/estimating/estimates/${row.convertedEstimateId}`)" />
+                            <Button label="Plan" size="small" text severity="secondary"
+                                @click.stop="router.push(`/estimating/staffing-plans/${row.staffingPlanId}`)" />
+                        </template>
+                        <template v-else>
+                            <Button label="Open" size="small" text
+                                @click.stop="router.push(`/estimating/staffing-plans/${row.staffingPlanId}`)" />
+                            <Button label="Convert" size="small" text severity="success" class="action-hover"
+                                @click.stop="convertPlan(row)" />
+                            <Button icon="pi pi-trash" size="small" text severity="danger" class="action-hover"
+                                @click.stop="confirmDelete(row)" />
+                        </template>
+                    </div>
+                </template>
+            </Column>
+        </DataTable>
+
+        <!-- ── CARD VIEW ── -->
         <div v-else class="card-grid" data-testid="sp-card-grid">
             <div
                 v-for="item in filteredItems"
@@ -120,7 +216,7 @@
                     />
                 </div>
 
-                <!-- Converted plans: hover-only Open Estimate button -->
+                <!-- Converted plans -->
                 <div v-if="item.convertedEstimateId" class="card-actions">
                     <Button
                         label="Open Estimate"
@@ -139,7 +235,7 @@
                         @click="router.push(`/estimating/staffing-plans/${item.staffingPlanId}`)"
                     />
                 </div>
-                <!-- Non-converted plans: hover-only actions -->
+                <!-- Non-converted plans -->
                 <div v-else class="card-actions">
                     <Button
                         label="Open"
@@ -187,8 +283,8 @@
         >
             <p>Delete "{{ deleteTarget?.name }}"? This cannot be undone.</p>
             <template #footer>
-                <Button label="Cancel" text @click="deleteConfirmVisible = false" />
-                <Button label="Delete" severity="danger" @click="doDelete" />
+                <Button label="Cancel" text @click="cancelDelete" />
+                <Button label="Delete" severity="danger" @click="doBulkOrSingleDelete" />
             </template>
         </Dialog>
     </div>
@@ -199,10 +295,14 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { useApiStore } from '@/stores/apiStore';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
 
 const router = useRouter();
 const toast = useToast();
 const apiStore = useApiStore();
+
+type ViewMode = 'table' | 'card';
 
 interface StaffingListItem {
     staffingPlanId: number;
@@ -233,6 +333,12 @@ const statusFilter = ref('');
 const branchFilter = ref('');
 const yearFilter = ref<number | ''>('');
 
+const viewMode = ref<ViewMode>((localStorage.getItem('sp-view-mode') as ViewMode) ?? 'card');
+function setView(mode: ViewMode) {
+    viewMode.value = mode;
+    localStorage.setItem('sp-view-mode', mode);
+}
+
 const yearOptions = [
     { label: 'All Years', value: '' as number | '' },
     { label: '2025', value: 2025 },
@@ -243,6 +349,7 @@ let debounceTimer: ReturnType<typeof setTimeout>;
 
 const deleteConfirmVisible = ref(false);
 const deleteTarget = ref<StaffingListItem | null>(null);
+const selectedPlans = ref<StaffingListItem[]>([]);
 
 const statusOptions = [
     { label: 'All Status', value: '' },
@@ -358,6 +465,12 @@ async function duplicatePlan(item: StaffingListItem) {
     }
 }
 
+function cancelDelete() {
+    deleteConfirmVisible.value = false;
+    bulkDeleteIds.value = [];
+    deleteTarget.value = null;
+}
+
 function confirmDelete(item: StaffingListItem) {
     deleteTarget.value = item;
     deleteConfirmVisible.value = true;
@@ -373,6 +486,42 @@ async function doDelete() {
         load();
     } catch (err: any) {
         toast.add({ severity: 'error', summary: 'Error', detail: err?.response?.data?.message ?? 'Delete failed', life: 4000 });
+    }
+}
+
+function confirmBulkDelete() {
+    const count = selectedPlans.value.length;
+    deleteConfirmVisible.value = false;
+    // reuse the existing dialog but with a bulk message
+    const ids = selectedPlans.value.map(p => p.staffingPlanId);
+    // Show a confirm via toast-style confirm — reuse Dialog by setting a synthetic target
+    deleteTarget.value = { staffingPlanId: -1, staffingPlanNumber: '', name: `${count} staffing plan${count !== 1 ? 's' : ''}`, client: '', status: '', roughLaborTotal: 0 };
+    bulkDeleteIds.value = ids;
+    deleteConfirmVisible.value = true;
+}
+
+const bulkDeleteIds = ref<number[]>([]);
+
+async function doBulkOrSingleDelete() {
+    if (bulkDeleteIds.value.length > 0) {
+        const ids = bulkDeleteIds.value;
+        bulkDeleteIds.value = [];
+        deleteConfirmVisible.value = false;
+        deleteTarget.value = null;
+        let failed = 0;
+        for (const id of ids) {
+            try {
+                await apiStore.api.delete(`/api/v1/staffing-plans/${id}`);
+            } catch {
+                failed++;
+            }
+        }
+        const succeeded = ids.length - failed;
+        toast.add({ severity: succeeded > 0 ? 'success' : 'error', summary: 'Bulk Delete', detail: `${succeeded} deleted${failed > 0 ? `, ${failed} failed` : ''}`, life: 3000 });
+        selectedPlans.value = [];
+        load();
+    } else {
+        await doDelete();
     }
 }
 
@@ -423,35 +572,53 @@ onMounted(load);
 </script>
 
 <style scoped>
+.staffing-list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
 .sp-toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
     padding: 6px 0 2px;
 }
 
-.sp-toolbar-left,
+.sp-toolbar-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.sp-filters-inline {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
 .sp-toolbar-right {
     display: flex;
     gap: 8px;
     align-items: center;
-    flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .sp-search {
-    min-width: 260px;
+    min-width: 200px;
 }
 
-.sp-filters {
+.view-toggle {
     display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-    padding: 8px 0 12px;
+    gap: 0.25rem;
 }
 
+/* ── Card grid ── */
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
@@ -533,6 +700,49 @@ onMounted(load);
     opacity: 1;
 }
 
+/* ── Table view ── */
+.sp-number-table {
+    font-family: monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #60a5fa;
+}
+
+/* Compact row density */
+.sp-table :deep(.p-datatable-thead > tr > th) {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-color-secondary);
+}
+.sp-table :deep(.p-datatable-tbody > tr > td) {
+    padding: 0.3rem 0.65rem;
+    line-height: 1.4;
+    font-size: 0.85rem;
+}
+.sp-table :deep(.p-datatable-tbody > tr) {
+    cursor: pointer;
+}
+
+/* Row actions — Open always visible; Convert + Delete hidden until hover */
+.sp-row-actions {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    min-width: 200px;
+}
+.sp-table :deep(.p-datatable-tbody tr .action-hover) {
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
+}
+.sp-table :deep(.p-datatable-tbody tr:hover .action-hover) {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ── Pagination ── */
 .pagination-bar {
     display: flex;
     align-items: center;
